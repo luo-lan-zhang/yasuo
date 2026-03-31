@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>恋爱心动测试</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 答题页 -->
+<div class="page" id="quizPage">
+  <div class="card">
+    <div class="title">💓 恋爱心动测试</div>
+    <div class="subtitle">测测你的恋爱属性</div>
+
+    <div class="question">
+      <p>1. 遇到喜欢的人你会？</p>
+      <label class="opt"><input type="radio" name="q1" value="1">主动靠近</label>
+      <label class="opt"><input type="radio" name="q1" value="2">偷偷暗恋</label>
+      <label class="opt"><input type="radio" name="q1" value="3">忽冷忽热</label>
+    </div>
+
+    <div class="question">
+      <p>2. 吵架后你会？</p>
+      <label class="opt"><input type="radio" name="q2" value="1">主动道歉</label>
+      <label class="opt"><input type="radio" name="q2" value="2">等对方哄</label>
+      <label class="opt"><input type="radio" name="q2" value="3">冷静沟通</label>
+    </div>
+
+    <div class="question">
+      <p>3. 你更看重？</p>
+      <label class="opt"><input type="radio" name="q3" value="1">颜值氛围</label>
+      <label class="opt"><input type="radio" name="q3" value="2">温柔体贴</label>
+      <label class="opt"><input type="radio" name="q3" value="3">能力担当</label>
+    </div>
+
+    <div class="question">
+      <p>4. 恋爱中你是？</p>
+      <label class="opt"><input type="radio" name="q4" value="1">超粘人</label>
+      <label class="opt"><input type="radio" name="q4" value="2">很独立</label>
+      <label class="opt"><input type="radio" name="q4" value="3">刚刚好</label>
+    </div>
+
+    <div class="question">
+      <p>5. 约会更喜欢？</p>
+      <label class="opt"><input type="radio" name="q5" value="1">安静咖啡</label>
+      <label class="opt"><input type="radio" name="q5" value="2">逛街打卡</label>
+      <label class="opt"><input type="radio" name="q5" value="3">散步看电影</label>
+    </div>
+
+    <button class="submit-btn" id="submit">生成结果</button>
+  </div>
+</div>
+
+<!-- 结果页 -->
+<div class="page" id="resultPage">
+  <div class="result-card">
+    <div class="heart">💖</div>
+    <h2 class="result-title" id="type">你的类型</h2>
+    <div class="result-tag" id="tag">标签</div>
+    <div class="result-text" id="analysis">分析内容</div>
+    <button class="reset-btn" id="reset">再来一次</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
