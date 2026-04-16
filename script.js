@@ -1,4 +1,586 @@
 // AI Music Agents - Multi-Agent System Implementation
+// 支持本地模板引擎 + 高级AI API双模式
+
+// ========== 配置管理 ==========
+const API_CONFIG = {
+    // Hugging Face API (推荐，免费额度充足)
+    huggingface: {
+        enabled: false, // 用户需要设置为true并填入API key
+        apiKey: '', // 从 https://huggingface.co/settings/tokens 获取
+        lyricsModel: 'gpt2', // 或 'facebook/bart-large-cnn'
+        baseURL: 'https://api-inference.huggingface.co/models/'
+    },
+    
+    // OpenAI GPT API (付费，质量最高)
+    openai: {
+        enabled: false,
+        apiKey: '', // 从 https://platform.openai.com/api-keys 获取
+        model: 'gpt-4', // 或 'gpt-3.5-turbo'
+        baseURL: 'https://api.openai.com/v1/chat/completions'
+    },
+    
+    // Claude API (付费，创意性强)
+    anthropic: {
+        enabled: false,
+        apiKey: '', // 从 https://console.anthropic.com/ 获取
+        model: 'claude-3-opus-20240229',
+        baseURL: 'https://api.anthropic.com/v1/messages'
+    },
+    
+    // 默认使用本地模板引擎
+    useLocalFallback: true
+};
+
+// ========== 高级AI作词智能体 ==========
+class AdvancedLyricsAgent {
+    constructor() {
+        this.status = 'idle';
+        this.result = null;
+        this.apiMode = 'local'; // 'local', 'huggingface', 'openai', 'anthropic'
+    }
+
+    async generate(params) {
+        this.setStatus('working');
+        
+        try {
+            let lyrics;
+            
+            // 根据配置选择API
+            if (API_CONFIG.openai.enabled && API_CONFIG.openai.apiKey) {
+                this.apiMode = 'openai';
+                lyrics = await this.generateWithOpenAI(params);
+            } else if (API_CONFIG.anthropic.enabled && API_CONFIG.anthropic.apiKey) {
+                this.apiMode = 'anthropic';
+                lyrics = await this.generateWithClaude(params);
+            } else if (API_CONFIG.huggingface.enabled && API_CONFIG.huggingface.apiKey) {
+                this.apiMode = 'huggingface';
+                lyrics = await this.generateWithHuggingFace(params);
+            } else {
+                // 降级到本地模板
+                this.apiMode = 'local';
+                const localAgent = new LyricsAgent();
+                lyrics = await localAgent.generate(params);
+            }
+            
+            this.result = lyrics;
+            this.setStatus('complete');
+            return lyrics;
+        } catch (error) {
+            console.error('AI生成失败，切换到本地模式:', error);
+            // 出错时降级到本地模式
+            this.apiMode = 'local';
+            const localAgent = new LyricsAgent();
+            const lyrics = await localAgent.generate(params);
+            this.result = lyrics;
+            this.setStatus('complete');
+            return lyrics;
+        }
+    }
+
+    // OpenAI GPT API
+    async generateWithOpenAI(params) {
+        const { theme, emotion, genre, keywords, language } = params;
+        
+        const prompt = this.buildLyricsPrompt(theme, emotion, genre, keywords, language);
+        
+        const response = await fetch(API_CONFIG.openai.baseURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${API_CONFIG.openai.apiKey}`
+            },
+            body: JSON.stringify({
+                model: API_CONFIG.openai.model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: '你是一位专业的词曲创作人，擅长创作各种风格的歌词。请严格按照要求的格式输出。'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.8,
+                max_tokens: 1500
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`OpenAI API错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+    }
+
+    // Claude API
+    async generateWithClaude(params) {
+        const { theme, emotion, genre, keywords, language } = params;
+        
+        const prompt = this.buildLyricsPrompt(theme, emotion, genre, keywords, language);
+        
+        const response = await fetch(API_CONFIG.anthropic.baseURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': API_CONFIG.anthropic.apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: API_CONFIG.anthropic.model,
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                max_tokens: 1500,
+                temperature: 0.8
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Claude API错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.content[0].text.trim();
+    }
+
+    // Hugging Face API
+    async generateWithHuggingFace(params) {
+        const { theme, emotion, genre, keywords } = params;
+        
+        const prompt = `创作一首${this.getEmotionName(emotion)}的${this.getGenreName(genre)}歌曲，主题是"${theme}"`; 
+        if (keywords) {
+            prompt += `，包含关键词：${keywords}`;
+        }
+        
+        const response = await fetch(
+            `${API_CONFIG.huggingface.baseURL}${API_CONFIG.huggingface.lyricsModel}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_CONFIG.huggingface.apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputs: prompt,
+                    parameters: {
+                        max_length: 500,
+                        temperature: 0.9,
+                        top_p: 0.95,
+                        repetition_penalty: 1.2
+                    }
+                })
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error(`Hugging Face API错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // 格式化输出
+        const generatedText = Array.isArray(data) ? data[0].generated_text : data.generated_text;
+        return this.formatAIGeneratedLyrics(generatedText, params);
+    }
+
+    // 构建提示词
+    buildLyricsPrompt(theme, emotion, genre, keywords, language) {
+        const emotionMap = {
+            happy: '欢快愉悦', sad: '忧伤深沉', romantic: '浪漫温馨',
+            energetic: '激情澎湃', melancholy: '忧郁怀旧', hopeful: '充满希望'
+        };
+        
+        const genreMap = {
+            pop: '流行音乐', rock: '摇滚乐', ballad: '抒情歌曲',
+            rnb: 'R&B', folk: '民谣', electronic: '电子音乐'
+        };
+        
+        let prompt = `请创作一首完整的${genreMap[genre] || '流行'}歌曲歌词。
+
+【创作要求】
+- 主题：${theme}
+- 情绪：${emotionMap[emotion] || '欢快'}
+- 风格：${genreMap[genre] || '流行'}
+- 语言：${language === 'chinese' ? '中文' : '英文'}
+`;
+        
+        if (keywords) {
+            prompt += `- 必须包含的关键词：${keywords}\n`;
+        }
+        
+        prompt += `
+【结构要求】
+请严格按照以下结构创作：
+
+【歌曲信息】
+主题：${theme}
+情绪：${emotionMap[emotion]}
+风格：${genreMap[genre]}
+语言：${language === 'chinese' ? '中文' : 'English'}
+
+【主歌1】
+(4-6行，引入主题，建立场景)
+
+【主歌2】
+(4-6行，深化情感，推进叙事)
+
+【预副歌】
+(2-4行，情绪铺垫，引导高潮)
+
+【副歌】
+(4-6行，情感高潮，记忆点强，朗朗上口)
+
+【桥段】
+(4-6行，转折或升华，带来新鲜感)
+
+【尾奏】
+(2-4行，收尾呼应，余韵悠长)
+
+【创作技巧】
+1. 押韵工整，注意韵脚的统一和变化
+2. 意象丰富，有画面感和代入感
+3. 情感真挚，避免空洞的口号
+4. 语言优美但不晦涩
+5. 符合${genreMap[genre]}的风格特点
+
+请直接输出歌词内容，不要添加额外解释。`;
+        
+        return prompt;
+    }
+
+    // 格式化AI生成的歌词
+    formatAIGeneratedLyrics(text, params) {
+        // 清理文本
+        let formatted = text.trim();
+        
+        // 如果没有标准格式，添加头部信息
+        if (!formatted.includes('【歌曲信息】')) {
+            const header = `【歌曲信息】
+主题：${params.theme}
+情绪：${this.getEmotionName(params.emotion)}
+风格：${this.getGenreName(params.genre)}
+语言：${params.language === 'chinese' ? '中文' : 'English'}
+
+`;
+            formatted = header + formatted;
+        }
+        
+        return formatted;
+    }
+
+    getEmotionName(emotion) {
+        const map = {
+            happy: '欢快', sad: '忧伤', romantic: '浪漫',
+            energetic: '激情', melancholy: '忧郁', hopeful: '希望'
+        };
+        return map[emotion] || emotion;
+    }
+
+    getGenreName(genre) {
+        const map = {
+            pop: '流行', rock: '摇滚', ballad: '抒情',
+            rnb: 'R&B', folk: '民谣', electronic: '电子'
+        };
+        return map[genre] || genre;
+    }
+
+    setStatus(status) {
+        this.status = status;
+        this.updateUI();
+    }
+
+    updateUI() {
+        const navItem = document.querySelector('[data-agent="lyrics"]');
+        const card = document.getElementById('lyricsAgentCard');
+        if (navItem && card) {
+            const statusEl = navItem.querySelector('.agent-status');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusEl.className = `agent-status status-${this.status}`;
+            statusEl.textContent = this.getStatusText(this.status);
+            indicator.className = `status-indicator status-${this.status}`;
+            indicator.textContent = this.getStatusText(this.status);
+        }
+    }
+
+    getStatusText(status) {
+        const map = { idle: '待命', working: 'AI创作中', complete: '已完成' };
+        return map[status] || status;
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// ========== 高级AI编曲智能体 ==========
+class AdvancedArrangementAgent {
+    constructor() {
+        this.status = 'idle';
+        this.result = null;
+        this.apiMode = 'local';
+    }
+
+    async generate(params) {
+        this.setStatus('working');
+        
+        try {
+            let arrangement;
+            
+            if (API_CONFIG.openai.enabled && API_CONFIG.openai.apiKey) {
+                this.apiMode = 'openai';
+                arrangement = await this.generateWithOpenAI(params);
+            } else if (API_CONFIG.anthropic.enabled && API_CONFIG.anthropic.apiKey) {
+                this.apiMode = 'anthropic';
+                arrangement = await this.generateWithClaude(params);
+            } else if (API_CONFIG.huggingface.enabled && API_CONFIG.huggingface.apiKey) {
+                this.apiMode = 'huggingface';
+                arrangement = await this.generateWithHuggingFace(params);
+            } else {
+                this.apiMode = 'local';
+                const localAgent = new ArrangementAgent();
+                arrangement = await localAgent.generate(params);
+            }
+            
+            this.result = arrangement;
+            this.setStatus('complete');
+            return arrangement;
+        } catch (error) {
+            console.error('AI编曲失败，切换到本地模式:', error);
+            this.apiMode = 'local';
+            const localAgent = new ArrangementAgent();
+            const arrangement = await localAgent.generate(params);
+            this.result = arrangement;
+            this.setStatus('complete');
+            return arrangement;
+        }
+    }
+
+    async generateWithOpenAI(params) {
+        const prompt = this.buildArrangementPrompt(params);
+        
+        const response = await fetch(API_CONFIG.openai.baseURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${API_CONFIG.openai.apiKey}`
+            },
+            body: JSON.stringify({
+                model: API_CONFIG.openai.model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: '你是一位专业的音乐制作人和编曲家，精通各种音乐风格的编曲。请提供详细专业的编曲方案。'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 2000
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`OpenAI API错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+    }
+
+    async generateWithClaude(params) {
+        const prompt = this.buildArrangementPrompt(params);
+        
+        const response = await fetch(API_CONFIG.anthropic.baseURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': API_CONFIG.anthropic.apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: API_CONFIG.anthropic.model,
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 2000,
+                temperature: 0.7
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Claude API错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.content[0].text.trim();
+    }
+
+    async generateWithHuggingFace(params) {
+        // Hugging Face的音乐模型较少，这里使用通用模型
+        const prompt = `为${params.emotion}情绪的${params.genre}风格歌曲设计编曲，BPM ${params.bpm}，调式${params.key}`;
+        
+        const response = await fetch(
+            `${API_CONFIG.huggingface.baseURL}gpt2`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_CONFIG.huggingface.apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputs: prompt,
+                    parameters: { max_length: 800, temperature: 0.8 }
+                })
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error(`Hugging Face API错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const generatedText = Array.isArray(data) ? data[0].generated_text : data.generated_text;
+        return this.formatArrangementText(generatedText, params);
+    }
+
+    buildArrangementPrompt(params) {
+        const { bpm, key, lyricsRef, emotion, genre } = params;
+        
+        const emotionMap = {
+            happy: '欢快', sad: '忧伤', romantic: '浪漫',
+            energetic: '激情', melancholy: '忧郁', hopeful: '希望'
+        };
+        
+        const genreMap = {
+            pop: '流行', rock: '摇滚', ballad: '抒情',
+            rnb: 'R&B', folk: '民谣', electronic: '电子'
+        };
+        
+        return `请为以下歌曲创作一份专业详细的编曲方案。
+
+【歌曲信息】
+- 风格：${genreMap[genre]} (${genre})
+- 情绪：${emotionMap[emotion]}
+- BPM：${bpm}
+- 调式：${key}
+${lyricsRef ? `- 歌词参考：\n${lyricsRef.substring(0, 500)}` : ''}
+
+【输出要求】
+请严格按照以下格式输出：
+
+【编曲方案】
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎹 基础信息
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+曲风定位：[详细描述]
+调式调性：${key} [大调/小调]
+BPM速度：${bpm}
+拍号：4/4
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎼 和弦进行
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【主歌部分】
+[具体的和弦进行，如 C - G - Am - F]
+
+【副歌部分】
+[具体的和弦进行]
+
+【桥段部分】
+[具体的和弦进行]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎸 段落乐器编排
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【主歌 Verse】
+[详细的乐器配置]
+
+【预副歌 Pre-Chorus】
+[详细的乐器配置]
+
+【副歌 Chorus】
+[详细的乐器配置]
+
+【桥段 Bridge】
+[详细的乐器配置]
+
+【尾奏 Outro】
+[详细的乐器配置]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🥁 节奏型与律动
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+鼓组节奏：[详细描述]
+贝斯线条：[详细描述]
+律动特点：[详细描述]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✨ 氛围描述
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[整体氛围、音色特点、空间感的详细描述]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 制作建议
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[5-7条专业的制作建议]
+
+【专业要求】
+1. 必须包含5类乐器：鼓组、贝斯、和声乐器、旋律乐器、色彩乐器
+2. 每个段落都要详细说明使用的乐器和演奏方式
+3. 和弦进行要专业且符合${emotionMap[emotion]}情绪
+4. 考虑动态对比和层次递进
+5. 提供具体可行的制作建议
+
+请确保内容专业、详细、可直接用于实际制作。`;
+    }
+
+    formatArrangementText(text, params) {
+        if (!text.includes('【编曲方案】')) {
+            return `【编曲方案】\n\n${text}`;
+        }
+        return text;
+    }
+
+    setStatus(status) {
+        this.status = status;
+        this.updateUI();
+    }
+
+    updateUI() {
+        const navItem = document.querySelector('[data-agent="arrangement"]');
+        const card = document.getElementById('arrangementAgentCard');
+        if (navItem && card) {
+            const statusEl = navItem.querySelector('.agent-status');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusEl.className = `agent-status status-${this.status}`;
+            statusEl.textContent = this.getStatusText(this.status);
+            indicator.className = `status-indicator status-${this.status}`;
+            indicator.textContent = this.getStatusText(this.status);
+        }
+    }
+
+    getStatusText(status) {
+        const map = { idle: '待命', working: 'AI编曲中', complete: '已完成' };
+        return map[status] || status;
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
 
 class LyricsAgent {
     constructor() {
@@ -663,7 +1245,7 @@ class EvaluationAgent {
     performEvaluation(lyrics, arrangement) {
         const lyricsScore = this.evaluateLyrics(lyrics);
         const arrangementScore = this.evaluateArrangement(arrangement);
-        const totalScore = ((lyricsScore.total + arrangementScore.total) / 2).toFixed(1);
+        const totalScore = parseFloat(((lyricsScore.total + arrangementScore.total) / 2).toFixed(1));
 
         return {
             lyrics: lyricsScore,
@@ -681,7 +1263,7 @@ class EvaluationAgent {
         const writing = this.scoreWriting(lyrics);
         const singability = this.scoreSingability(lyrics);
 
-        const total = ((rhyme + structure + emotion + writing + singability) / 5).toFixed(1);
+        const total = parseFloat(((rhyme + structure + emotion + writing + singability) / 5).toFixed(1));
 
         return {
             rhyme, structure, emotion, writing, singability, total,
@@ -696,7 +1278,7 @@ class EvaluationAgent {
         const emotionMatch = this.scoreEmotionMatch(arrangement);
         const structure = this.scoreArrStructure(arrangement);
 
-        const total = ((professionalism + instrumentation + harmony + emotionMatch + structure) / 5).toFixed(1);
+        const total = parseFloat(((professionalism + instrumentation + harmony + emotionMatch + structure) / 5).toFixed(1));
 
         return {
             professionalism, instrumentation, harmony, emotionMatch, structure, total,
@@ -718,7 +1300,7 @@ class EvaluationAgent {
     scoreArrStructure(arr) { return this.randomScore(7.5, 9); }
 
     randomScore(min, max) {
-        return (Math.random() * (max - min) + min).toFixed(1);
+        return parseFloat((Math.random() * (max - min) + min).toFixed(1));
     }
 
     getLyricsComment(rhyme, structure, emotion, writing, singability) {
@@ -1010,8 +1592,9 @@ ${auditData.recommendation}
 // Main Controller
 class MusicAgentsController {
     constructor() {
-        this.lyricsAgent = new LyricsAgent();
-        this.arrangementAgent = new ArrangementAgent();
+        // 使用高级AI智能体（支持API调用）
+        this.lyricsAgent = new AdvancedLyricsAgent();
+        this.arrangementAgent = new AdvancedArrangementAgent();
         this.evaluationAgent = new EvaluationAgent();
         this.auditAgent = new AuditAgent();
         
@@ -1024,6 +1607,7 @@ class MusicAgentsController {
     init() {
         this.bindEvents();
         this.updateHistoryList();
+        this.loadApiConfig(); // 加载保存的API配置
     }
 
     bindEvents() {
@@ -1039,6 +1623,32 @@ class MusicAgentsController {
                     this.switchView(view);
                 }
             });
+        });
+
+        // API配置
+        document.getElementById('apiConfigBtn').addEventListener('click', () => {
+            this.toggleApiConfig();
+        });
+
+        document.getElementById('closeApiConfig').addEventListener('click', () => {
+            this.toggleApiConfig();
+        });
+
+        // API引擎切换
+        document.querySelectorAll('input[name="apiEngine"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.handleApiEngineChange(e.target.value);
+            });
+        });
+
+        // 保存API配置
+        document.getElementById('saveApiConfig').addEventListener('click', () => {
+            this.saveApiConfig();
+        });
+
+        // 测试API连接
+        document.getElementById('testApiConnection').addEventListener('click', () => {
+            this.testApiConnection();
         });
 
         // Lyrics Agent
@@ -1085,6 +1695,7 @@ class MusicAgentsController {
 
         document.getElementById('overlay').addEventListener('click', () => {
             this.toggleHistory();
+            this.toggleApiConfig(false);
         });
     }
 
@@ -1236,60 +1847,131 @@ class MusicAgentsController {
             return;
         }
 
+        // 设置最大重试次数
+        const MAX_RETRIES = 5;
+        let attempt = 0;
+        let auditPassed = false;
+        let finalWork = null;
+
         this.currentWork = { params };
-        this.updateStepStatus(1, 'running');
+        
+        // 显示重试提示
+        this.showNotification(`🔄 开始创作流程（最多尝试${MAX_RETRIES}次）`, 'info');
 
-        // Step 1: Lyrics
-        this.updateStepStatus(2, 'running');
-        const lyrics = await this.lyricsAgent.generate(params);
-        this.updateStepStatus(2, 'done');
-        this.addLog('作词智能体', '歌词生成完成');
+        while (attempt < MAX_RETRIES && !auditPassed) {
+            attempt++;
+            this.showNotification(`🎯 第 ${attempt}/${MAX_RETRIES} 次尝试`, 'info');
+            
+            try {
+                // 重置步骤状态
+                for (let i = 1; i <= 5; i++) {
+                    this.updateStepStatus(i, 'pending');
+                }
+                
+                this.updateStepStatus(1, 'running');
 
-        // Step 2: Arrangement
-        this.updateStepStatus(3, 'running');
-        const arrangement = await this.arrangementAgent.generate({
-            bpm: params.bpm,
-            key: params.key,
-            emotion: params.emotion,
-            genre: params.genre
-        });
-        this.updateStepStatus(3, 'done');
-        this.addLog('编曲智能体', '编曲方案生成完成');
+                // Step 1: Lyrics
+                this.updateStepStatus(2, 'running');
+                const lyrics = await this.lyricsAgent.generate(params);
+                this.updateStepStatus(2, 'done');
+                this.addLog('作词智能体', `第${attempt}次 - 歌词生成完成`);
 
-        // Step 3: Evaluation
-        this.updateStepStatus(4, 'running');
-        const evaluation = await this.evaluationAgent.evaluate(lyrics, arrangement);
-        this.updateStepStatus(4, 'done');
-        this.addLog('评估智能体', `评分：${evaluation.total}/10`);
+                // Step 2: Arrangement
+                this.updateStepStatus(3, 'running');
+                const arrangement = await this.arrangementAgent.generate({
+                    bpm: params.bpm,
+                    key: params.key,
+                    emotion: params.emotion,
+                    genre: params.genre
+                });
+                this.updateStepStatus(3, 'done');
+                this.addLog('编曲智能体', `第${attempt}次 - 编曲方案生成完成`);
 
-        // Step 4: Audit
-        this.updateStepStatus(5, 'running');
-        const audit = await this.auditAgent.audit(lyrics, arrangement, evaluation);
-        this.updateStepStatus(5, 'done');
-        this.addLog('审核智能体', audit.verdict);
+                // Step 3: Evaluation
+                this.updateStepStatus(4, 'running');
+                const evaluation = await this.evaluationAgent.evaluate(lyrics, arrangement);
+                this.updateStepStatus(4, 'done');
+                this.addLog('评估智能体', `第${attempt}次 - 评分：${evaluation.total}/10`);
 
-        this.currentWork = {
-            ...this.currentWork,
-            lyrics,
-            arrangement,
-            evaluation,
-            audit,
-            title: document.getElementById('wsTitle').value || params.theme,
-            createdAt: new Date().toISOString()
-        };
+                // Step 4: Audit
+                this.updateStepStatus(5, 'running');
+                const audit = await this.auditAgent.audit(lyrics, arrangement, evaluation);
+                this.updateStepStatus(5, 'done');
+                this.addLog('审核智能体', `第${attempt}次 - ${audit.verdict}`);
 
-        // Show results
-        this.displayResults();
-        this.switchView('result');
+                finalWork = {
+                    ...this.currentWork,
+                    lyrics,
+                    arrangement,
+                    evaluation,
+                    audit,
+                    title: document.getElementById('wsTitle').value || params.theme,
+                    createdAt: new Date().toISOString(),
+                    attemptNumber: attempt
+                };
 
-        if (audit.passed) {
-            this.saveToHistory();
-            this.showNotification('🎉 创作完成！作品已保存', 'success');
-        } else {
-            this.showNotification('⚠️ 审核未通过，请查看建议', 'warning');
+                // 检查是否通过审核
+                if (audit.passed) {
+                    auditPassed = true;
+                    this.showNotification(`✅ 第${attempt}次尝试 - 审核通过！`, 'success');
+                    this.addLog('总控中心', `✅ 第${attempt}次尝试成功，作品达标`);
+                } else {
+                    this.showNotification(`⚠️ 第${attempt}次尝试 - 审核未通过，准备重新生成...`, 'warning');
+                    this.addLog('总控中心', `❌ 第${attempt}次尝试失败，原因：${audit.issues.join(', ')}`);
+                    
+                    // 如果还有重试机会，等待一下再继续
+                    if (attempt < MAX_RETRIES) {
+                        this.showNotification('⏳ 等待3秒后重新生成...', 'info');
+                        await this.delay(3000);
+                    }
+                }
+
+            } catch (error) {
+                console.error(`第${attempt}次尝试出错:`, error);
+                this.addLog('总控中心', `❌ 第${attempt}次尝试出错：${error.message}`);
+                
+                if (attempt < MAX_RETRIES) {
+                    this.showNotification(`⚠️ 第${attempt}次尝试出错，准备重试...`, 'warning');
+                    await this.delay(2000);
+                }
+            }
         }
 
-        this.updateWorkflowStatus(audit);
+        // 最终结果处理
+        this.currentWork = finalWork;
+        
+        if (auditPassed) {
+            // 审核通过，保存并展示
+            this.displayResults();
+            this.switchView('result');
+            this.saveToHistory();
+            this.showNotification(`🎉 创作完成！经过${attempt}次尝试，作品已保存`, 'success');
+            this.updateWorkflowStatus(finalWork.audit);
+        } else {
+            // 达到最大重试次数仍未通过
+            this.displayResults();
+            this.switchView('result');
+            this.saveToHistory(); // 即使未通过也保存，供用户参考
+            this.showNotification(
+                `⚠️ 已达到最大重试次数（${MAX_RETRIES}次），建议手动调整参数后重试`,
+                'warning'
+            );
+            this.updateWorkflowStatus(finalWork.audit);
+            
+            // 显示详细建议
+            this.addLog('总控中心', `
+⚠️ 经过${MAX_RETRIES}次尝试仍未通过审核
+
+可能的问题：
+${finalWork.audit.issues.map(issue => `- ${issue}`).join('\n')}
+
+建议：
+1. 调整创作参数（情绪、风格、关键词）
+2. 在歌词编辑器中手动优化
+3. 在编曲编辑器中调整配置
+4. 降低审核标准（未来版本支持）
+            `);
+        }
     }
 
     updateStepStatus(stepNum, status) {
@@ -1352,13 +2034,56 @@ class MusicAgentsController {
                         <div class="track-title">${work.title || work.params.theme}</div>
                         <div class="track-meta">${work.params.genre} · ${work.params.emotion} · ${work.arrangement.bpm} BPM</div>
                     </div>
-                    <audio id="finalAudioPlayer" controls preload="auto">
-                        <source src="${audioUrl}" type="audio/wav">
+                    <audio id="finalAudioPlayer" controls preload="auto" src="${audioUrl}">
                         您的浏览器不支持音频播放
                     </audio>
                     <div class="audio-actions">
                         <button class="btn-sm" onclick="window.app.downloadAudio()">💾 下载音频</button>
                         <button class="btn-sm" onclick="window.app.regenerateAudio()">🔄 重新生成</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 人声录制模块 -->
+            <div class="result-section vocal-recording-section">
+                <h3>🎤 人声录制工作室</h3>
+                <div class="vocal-recorder-wrapper">
+                    <div class="recorder-controls">
+                        <div class="recorder-status" id="recorderStatus">
+                            <div class="status-icon">🎙️</div>
+                            <div class="status-text">准备就绪</div>
+                        </div>
+                        
+                        <div class="recorder-timer" id="recorderTimer">00:00</div>
+                        
+                        <div class="recorder-buttons">
+                            <button class="btn-record" id="startRecordBtn">
+                                <span class="btn-icon">●</span>
+                                <span class="btn-text">开始录制</span>
+                            </button>
+                            <button class="btn-stop" id="stopRecordBtn" disabled>
+                                <span class="btn-icon">■</span>
+                                <span class="btn-text">停止</span>
+                            </button>
+                            <button class="btn-play" id="playRecordBtn" disabled>
+                                <span class="btn-icon">▶</span>
+                                <span class="btn-text">播放</span>
+                            </button>
+                        </div>
+                        
+                        <div class="recorder-hint">
+                            💡 提示：请对着麦克风清唱或跟随伴奏演唱，建议佩戴耳机
+                        </div>
+                    </div>
+                    
+                    <div class="audio-visualizer" id="audioVisualizer">
+                        <canvas id="visualizerCanvas"></canvas>
+                    </div>
+                    
+                    <div class="vocal-actions" id="vocalActions" style="display: none;">
+                        <button class="btn-sm" onclick="window.app.downloadVocal()">💾 下载人声</button>
+                        <button class="btn-sm" onclick="window.app.mergeVocalWithBacking()">🎼 合并到伴奏</button>
+                        <button class="btn-sm" onclick="window.app.reRecord()">🔄 重新录制</button>
                     </div>
                 </div>
             </div>
@@ -1395,6 +2120,8 @@ class MusicAgentsController {
             if (audioPlayer) {
                 audioPlayer.volume = 0.7;
             }
+            // 初始化录音器
+            this.initVocalRecorder();
         }, 500);
     }
 
@@ -1424,6 +2151,7 @@ class MusicAgentsController {
                     <div>
                         <div class="history-title">${item.title || item.params.theme}</div>
                         <div class="history-date">${new Date(item.createdAt).toLocaleString('zh-CN')}</div>
+                        ${item.attemptNumber ? `<div style="font-size: 11px; color: var(--accent-primary); margin-top: 4px;">🔄 尝试${item.attemptNumber}次</div>` : ''}
                     </div>
                 </div>
                 <div class="history-tags">
@@ -1526,47 +2254,106 @@ ${this.auditAgent.formatAuditReport(this.currentWork.audit)}
         const params = work.params;
         const arrangement = work.arrangement;
         
-        // 根据情绪和风格设置音频参数
-        const audioParams = this.getAudioParameters(params.emotion, params.genre, arrangement.bpm);
-        
-        // 生成30秒的音频
-        const duration = 30;
-        const sampleRate = audioContext.sampleRate;
+        // 生成20秒的专业级伴奏（类似QQ音乐流行歌曲）
+        const duration = 20;
+        const sampleRate = 44100;
         const buffer = audioContext.createBuffer(2, sampleRate * duration, sampleRate);
         
-        // 生成旋律音符
-        const melody = this.generateMelody(audioParams, duration);
+        // 根据情绪和风格获取专业的音频参数（参考周杰伦等流行音乐）
+        const audioParams = this.getProAudioParams(params.emotion, params.genre, arrangement.bpm, arrangement.key);
         
-        // 填充音频数据
+        // 生成各个音轨（类似专业编曲软件的多轨工程）
+        const pianoTrack = this.generatePianoTrack(audioParams, duration);
+        const bassTrack = this.generateBassTrack(audioParams, duration);
+        const stringsTrack = this.generateStringsTrack(audioParams, duration);
+        const drumsTrack = this.generateDrumsTrack(audioParams, duration);
+        const leadTrack = this.generateLeadTrack(audioParams, duration);
+        const padTrack = this.generatePadTrack(audioParams, duration);
+        const guitarTrack = this.generateGuitarTrack(audioParams, duration);
+        
+        // 合并所有音轨（混音）
         for (let channel = 0; channel < 2; channel++) {
             const data = buffer.getChannelData(channel);
+            
             for (let i = 0; i < data.length; i++) {
                 const t = i / sampleRate;
                 let sample = 0;
                 
-                // 合成多个音轨
-                melody.forEach(note => {
-                    if (t >= note.start && t < note.start + note.duration) {
-                        const envelope = this.getEnvelope(t, note.start, note.duration);
-                        const pan = channel === 0 ? note.pan : (1 - note.pan);
-                        sample += Math.sin(2 * Math.PI * note.frequency * t) * envelope * 0.08 * pan;
-                    }
-                });
+                // 钢琴（和弦伴奏）- 主音乐器
+                sample += pianoTrack.getChannelSample(t, channel) * 0.30;
                 
-                // 添加鼓点节奏
-                const drumPattern = this.getDrumSample(t, audioParams.bpm, channel);
-                sample += drumPattern;
+                // 贝斯（低频基础）- 重要
+                sample += bassTrack.getChannelSample(t, channel) * 0.35;
                 
-                // 添加轻微的噪音增加真实感
-                sample += (Math.random() - 0.5) * 0.01;
+                // 鼓组（节奏核心）- 流行音乐的灵魂
+                sample += drumsTrack.getChannelSample(t, channel) * 0.50;
                 
-                data[i] = Math.max(-1, Math.min(1, sample));
+                // 弦乐（情感渲染）
+                sample += stringsTrack.getChannelSample(t, channel) * 0.20;
+                
+                // 吉他（色彩乐器）
+                sample += guitarTrack.getChannelSample(t, channel) * 0.25;
+                
+                // 主音（旋律线）
+                sample += leadTrack.getChannelSample(t, channel) * 0.15;
+                
+                // 铺底（氛围合成器）
+                sample += padTrack.getChannelSample(t, channel) * 0.12;
+                
+                // 软限幅器（防止爆音，保持音质）
+                if (sample > 1.0) sample = 1.0;
+                else if (sample < -1.0) sample = -1.0;
+                else sample = Math.tanh(sample); // 使用tanh做软限幅，更自然
+                
+                data[i] = sample;
             }
         }
         
         // 转换为WAV格式
         const wavBlob = this.bufferToWave(buffer, duration);
         return URL.createObjectURL(wavBlob);
+    }
+
+    // 获取专业音频参数（参考周杰伦、林俊杰等歌手的编曲风格）
+    getProAudioParams(emotion, genre, bpm, key) {
+        // 流行音乐常用调式
+        const keyFreqs = {
+            'C': 261.63, 'C#': 277.18, 'D': 293.66, 'D#': 311.13,
+            'E': 329.63, 'F': 349.23, 'F#': 369.99, 'G': 392.00,
+            'G#': 415.30, 'A': 440.00, 'A#': 466.16, 'B': 493.88
+        };
+        
+        // 流行音乐经典和弦进行（周杰伦常用）
+        const chordProgressions = {
+            // I-V-vi-IV（最流行的进行，如《晴天》《稻香》）
+            pop1: [0, 4, 5, 3],
+            // vi-IV-I-V（抒情经典，如《安静》《说好的幸福呢》）
+            ballad1: [5, 3, 0, 4],
+            // I-vi-IV-V（50年代进行，经典流行）
+            pop2: [0, 5, 3, 4],
+            // ii-V-I（爵士流行，如《告白气球》）
+            jazz: [1, 4, 0, 0]
+        };
+        
+        // 大调音阶（半音数）
+        const majorScale = [0, 2, 4, 5, 7, 9, 11];
+        // 小调音阶
+        const minorScale = [0, 2, 3, 5, 7, 8, 10];
+        
+        const baseFreq = keyFreqs[key] || keyFreqs['C'];
+        const scale = emotion === 'sad' || emotion === 'melancholy' ? minorScale : majorScale;
+        const progression = chordProgressions.pop1; // 默认使用最流行的进行
+        
+        return {
+            baseFreq,
+            key,
+            scale,
+            progression,
+            bpm,
+            beatDuration: 60 / bpm,
+            emotion,
+            genre
+        };
     }
 
     getAudioParameters(emotion, genre, bpm) {
@@ -1708,12 +2495,31 @@ ${this.auditAgent.formatAuditReport(this.currentWork.audit)}
             return;
         }
         
-        const link = document.createElement('a');
-        link.href = audioPlayer.src;
-        link.download = `${this.currentWork?.title || '编曲录音'}.wav`;
-        link.click();
-        
-        this.showNotification('💾 音频下载成功', 'success');
+        // 使用fetch获取blob，确保下载可靠
+        fetch(audioPlayer.src)
+            .then(response => response.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${this.currentWork?.title || '编曲录音'}.wav`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                this.showNotification('💾 音频下载成功', 'success');
+            })
+            .catch(error => {
+                console.error('下载失败:', error);
+                // 如果fetch失败，尝试直接使用src
+                const link = document.createElement('a');
+                link.href = audioPlayer.src;
+                link.download = `${this.currentWork?.title || '编曲录音'}.wav`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                this.showNotification('💾 音频下载成功', 'success');
+            });
     }
 
     async regenerateAudio() {
@@ -1771,6 +2577,583 @@ ${this.auditAgent.formatAuditReport(this.currentWork.audit)}
             notification.style.animation = 'slideOutRight 0.3s ease';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
+    }
+
+    // ========== API配置管理 ==========
+    
+    toggleApiConfig(forceState) {
+        const sidebar = document.getElementById('apiConfigSidebar');
+        const overlay = document.getElementById('overlay');
+        
+        if (typeof forceState === 'boolean') {
+            if (forceState) {
+                sidebar.classList.add('open');
+                overlay.classList.add('show');
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+            }
+        } else {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+    }
+
+    handleApiEngineChange(engine) {
+        // 隐藏所有配置面板
+        document.getElementById('openaiConfig').style.display = 'none';
+        document.getElementById('anthropicConfig').style.display = 'none';
+        document.getElementById('huggingfaceConfig').style.display = 'none';
+        
+        // 显示对应的配置面板
+        if (engine === 'openai') {
+            document.getElementById('openaiConfig').style.display = 'block';
+        } else if (engine === 'anthropic') {
+            document.getElementById('anthropicConfig').style.display = 'block';
+        } else if (engine === 'huggingface') {
+            document.getElementById('huggingfaceConfig').style.display = 'block';
+        }
+    }
+
+    saveApiConfig() {
+        const engine = document.querySelector('input[name="apiEngine"]:checked').value;
+        
+        // 重置所有配置
+        API_CONFIG.huggingface.enabled = false;
+        API_CONFIG.openai.enabled = false;
+        API_CONFIG.anthropic.enabled = false;
+        
+        // 保存选中的引擎配置
+        if (engine === 'openai') {
+            const apiKey = document.getElementById('openaiApiKey').value.trim();
+            const model = document.getElementById('openaiModel').value;
+            
+            if (!apiKey) {
+                this.showNotification('⚠️ 请输入OpenAI API Key', 'warning');
+                return;
+            }
+            
+            API_CONFIG.openai.enabled = true;
+            API_CONFIG.openai.apiKey = apiKey;
+            API_CONFIG.openai.model = model;
+            
+        } else if (engine === 'anthropic') {
+            const apiKey = document.getElementById('anthropicApiKey').value.trim();
+            const model = document.getElementById('anthropicModel').value;
+            
+            if (!apiKey) {
+                this.showNotification('⚠️ 请输入Anthropic API Key', 'warning');
+                return;
+            }
+            
+            API_CONFIG.anthropic.enabled = true;
+            API_CONFIG.anthropic.apiKey = apiKey;
+            API_CONFIG.anthropic.model = model;
+            
+        } else if (engine === 'huggingface') {
+            const apiKey = document.getElementById('huggingfaceApiKey').value.trim();
+            const model = document.getElementById('huggingfaceModel').value;
+            
+            if (!apiKey) {
+                this.showNotification('⚠️ 请输入Hugging Face Token', 'warning');
+                return;
+            }
+            
+            API_CONFIG.huggingface.enabled = true;
+            API_CONFIG.huggingface.apiKey = apiKey;
+            API_CONFIG.huggingface.lyricsModel = model;
+        }
+        
+        // 保存到LocalStorage
+        localStorage.setItem('api_config', JSON.stringify(API_CONFIG));
+        
+        this.showNotification('✅ API配置已保存', 'success');
+        this.toggleApiConfig(false);
+    }
+
+    async testApiConnection() {
+        const engine = document.querySelector('input[name="apiEngine"]:checked').value;
+        
+        if (engine === 'local') {
+            this.showNotification('✅ 本地模式无需测试', 'success');
+            return;
+        }
+        
+        this.showNotification('🧪 正在测试连接...', 'info');
+        
+        try {
+            if (engine === 'openai') {
+                const apiKey = document.getElementById('openaiApiKey').value.trim();
+                if (!apiKey) {
+                    throw new Error('请输入API Key');
+                }
+                
+                const response = await fetch('https://api.openai.com/v1/models', {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                this.showNotification('✅ OpenAI API连接成功！', 'success');
+                
+            } else if (engine === 'anthropic') {
+                const apiKey = document.getElementById('anthropicApiKey').value.trim();
+                if (!apiKey) {
+                    throw new Error('请输入API Key');
+                }
+                
+                // Claude没有简单的测试端点，我们尝试一个最小请求
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-3-haiku-20240307',
+                        messages: [{ role: 'user', content: 'Hi' }],
+                        max_tokens: 10
+                    })
+                });
+                
+                if (!response.ok && response.status !== 400) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                this.showNotification('✅ Claude API连接成功！', 'success');
+                
+            } else if (engine === 'huggingface') {
+                const apiKey = document.getElementById('huggingfaceApiKey').value.trim();
+                if (!apiKey) {
+                    throw new Error('请输入Token');
+                }
+                
+                const response = await fetch('https://huggingface.co/api/whoami-v2', {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                this.showNotification('✅ Hugging Face API连接成功！', 'success');
+            }
+        } catch (error) {
+            console.error('API测试失败:', error);
+            this.showNotification(`❌ 连接失败: ${error.message}`, 'error');
+        }
+    }
+
+    loadApiConfig() {
+        const saved = localStorage.getItem('api_config');
+        if (saved) {
+            try {
+                const config = JSON.parse(saved);
+                Object.assign(API_CONFIG, config);
+                
+                // 恢复UI状态
+                if (API_CONFIG.openai.enabled) {
+                    document.querySelector('input[value="openai"]').checked = true;
+                    document.getElementById('openaiApiKey').value = API_CONFIG.openai.apiKey;
+                    document.getElementById('openaiModel').value = API_CONFIG.openai.model;
+                } else if (API_CONFIG.anthropic.enabled) {
+                    document.querySelector('input[value="anthropic"]').checked = true;
+                    document.getElementById('anthropicApiKey').value = API_CONFIG.anthropic.apiKey;
+                    document.getElementById('anthropicModel').value = API_CONFIG.anthropic.model;
+                } else if (API_CONFIG.huggingface.enabled) {
+                    document.querySelector('input[value="huggingface"]').checked = true;
+                    document.getElementById('huggingfaceApiKey').value = API_CONFIG.huggingface.apiKey;
+                    document.getElementById('huggingfaceModel').value = API_CONFIG.huggingface.lyricsModel;
+                }
+            } catch (e) {
+                console.error('加载API配置失败:', e);
+            }
+        }
+    }
+
+    // ========== 人声录制功能 ==========
+    
+    initVocalRecorder() {
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.recordedAudio = null;
+        this.mixedAudioUrl = null; // 保存混音后的URL
+        this.isRecording = false;
+        this.recordingStartTime = null;
+        this.timerInterval = null;
+        this.audioContext = null;
+        this.analyser = null;
+        this.dataArray = null;
+        this.animationId = null;
+        
+        // 绑定事件
+        const startBtn = document.getElementById('startRecordBtn');
+        const stopBtn = document.getElementById('stopRecordBtn');
+        const playBtn = document.getElementById('playRecordBtn');
+        
+        if (startBtn) {
+            startBtn.addEventListener('click', () => this.startRecording());
+        }
+        if (stopBtn) {
+            stopBtn.addEventListener('click', () => this.stopRecording());
+        }
+        if (playBtn) {
+            playBtn.addEventListener('click', () => this.playRecording());
+        }
+    }
+
+    async startRecording() {
+        try {
+            // 请求麦克风权限
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 44100
+                } 
+            });
+            
+            // 创建MediaRecorder
+            this.mediaRecorder = new MediaRecorder(stream);
+            this.audioChunks = [];
+            
+            // 设置音频分析器（可视化）
+            this.setupAudioVisualizer(stream);
+            
+            // 监听数据可用
+            this.mediaRecorder.ondataavailable = (event) => {
+                this.audioChunks.push(event.data);
+            };
+            
+            // 监听录制结束
+            this.mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+                this.recordedAudio = URL.createObjectURL(audioBlob);
+                this.showNotification('✅ 录制完成！', 'success');
+                
+                // 启用播放按钮
+                const playBtn = document.getElementById('playRecordBtn');
+                if (playBtn) playBtn.disabled = false;
+                
+                // 显示操作按钮
+                const vocalActions = document.getElementById('vocalActions');
+                if (vocalActions) vocalActions.style.display = 'flex';
+                
+                // 停止所有音轨
+                stream.getTracks().forEach(track => track.stop());
+                
+                // 停止可视化
+                this.stopVisualizer();
+            };
+            
+            // 开始录制
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.recordingStartTime = Date.now();
+            
+            // 更新UI
+            this.updateRecorderStatus('recording');
+            this.startTimer();
+            
+            // 禁用开始按钮，启用停止按钮
+            const startBtn = document.getElementById('startRecordBtn');
+            const stopBtn = document.getElementById('stopRecordBtn');
+            if (startBtn) startBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = false;
+            
+            this.showNotification('🎤 开始录制...', 'info');
+            
+        } catch (error) {
+            console.error('录音失败:', error);
+            this.showNotification('❌ 无法访问麦克风，请检查权限', 'error');
+        }
+    }
+
+    stopRecording() {
+        if (this.mediaRecorder && this.isRecording) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+            
+            // 更新UI
+            this.updateRecorderStatus('stopped');
+            this.stopTimer();
+            
+            // 禁用停止按钮
+            const stopBtn = document.getElementById('stopRecordBtn');
+            if (stopBtn) stopBtn.disabled = true;
+        }
+    }
+
+    playRecording() {
+        if (this.recordedAudio) {
+            const audio = new Audio(this.recordedAudio);
+            audio.play();
+            this.showNotification('▶️ 正在播放...', 'info');
+        }
+    }
+
+    downloadVocal() {
+        if (!this.recordedAudio) {
+            this.showNotification('⚠️ 请先录制人声', 'warning');
+            return;
+        }
+        
+        const link = document.createElement('a');
+        link.href = this.recordedAudio;
+        link.download = `${this.currentWork?.title || '人声'}_vocal.wav`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        this.showNotification('💾 人声下载成功', 'success');
+    }
+
+    async mergeVocalWithBacking() {
+        if (!this.recordedAudio) {
+            this.showNotification('⚠️ 请先录制人声', 'warning');
+            return;
+        }
+        
+        this.showNotification('🎼 正在合并人声和伴奏...', 'info');
+        
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // 获取伴奏音频
+            const backingPlayer = document.getElementById('finalAudioPlayer');
+            if (!backingPlayer || !backingPlayer.src) {
+                throw new Error('未找到伴奏音频');
+            }
+            
+            // 获取人声和伴奏的ArrayBuffer
+            const [vocalResponse, backingResponse] = await Promise.all([
+                fetch(this.recordedAudio),
+                fetch(backingPlayer.src)
+            ]);
+            
+            const vocalArrayBuffer = await vocalResponse.arrayBuffer();
+            const backingArrayBuffer = await backingResponse.arrayBuffer();
+            
+            // 解码音频
+            const [vocalBuffer, backingBuffer] = await Promise.all([
+                audioContext.decodeAudioData(vocalArrayBuffer),
+                audioContext.decodeAudioData(backingArrayBuffer)
+            ]);
+            
+            // 创建混合缓冲区（取较长的长度）
+            const maxLength = Math.max(vocalBuffer.length, backingBuffer.length);
+            const mixedBuffer = audioContext.createBuffer(
+                2,
+                maxLength,
+                audioContext.sampleRate
+            );
+            
+            // 混合人声和伴奏
+            for (let channel = 0; channel < 2; channel++) {
+                const vocalData = vocalBuffer.getChannelData(channel % vocalBuffer.numberOfChannels);
+                const backingData = backingBuffer.getChannelData(channel % backingBuffer.numberOfChannels);
+                const mixedData = mixedBuffer.getChannelData(channel);
+                
+                for (let i = 0; i < maxLength; i++) {
+                    const vocal = i < vocalData.length ? vocalData[i] * 0.8 : 0; // 人声80%音量
+                    const backing = i < backingData.length ? backingData[i] * 0.6 : 0; // 伴奏60%音量
+                    mixedData[i] = vocal + backing;
+                }
+            }
+            
+            // 转换为WAV
+            const wavBlob = this.bufferToWave(mixedBuffer, maxLength / audioContext.sampleRate);
+            this.mixedAudioUrl = URL.createObjectURL(wavBlob); // 保存到实例变量
+            
+            // 创建播放器
+            const mergedAudio = new Audio(this.mixedAudioUrl);
+            mergedAudio.controls = true;
+            
+            // 显示混合后的播放器
+            const vocalSection = document.querySelector('.vocal-recording-section');
+            if (vocalSection) {
+                const mergeResult = document.createElement('div');
+                mergeResult.className = 'merge-result';
+                mergeResult.innerHTML = `
+                    <h4>🎵 混音完成</h4>
+                    <audio controls src="${this.mixedAudioUrl}" style="width: 100%; margin-top: 15px;"></audio>
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="btn-sm" id="downloadMergedBtn">💾 下载完整歌曲</button>
+                    </div>
+                `;
+                vocalSection.appendChild(mergeResult);
+                
+                // 绑定下载按钮事件
+                setTimeout(() => {
+                    const downloadBtn = document.getElementById('downloadMergedBtn');
+                    if (downloadBtn) {
+                        downloadBtn.addEventListener('click', () => this.downloadMergedAudio());
+                    }
+                }, 100);
+            }
+            
+            this.showNotification('✅ 混音完成！', 'success');
+            
+        } catch (error) {
+            console.error('混音失败:', error);
+            this.showNotification(`❌ 混音失败: ${error.message}`, 'error');
+        }
+    }
+
+    downloadMergedAudio() {
+        if (!this.mixedAudioUrl) {
+            this.showNotification('⚠️ 请先合并人声和伴奏', 'warning');
+            return;
+        }
+        
+        const link = document.createElement('a');
+        link.href = this.mixedAudioUrl;
+        link.download = `${this.currentWork?.title || '作品'}_完整版.wav`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        this.showNotification('💾 完整歌曲下载成功', 'success');
+    }
+
+    reRecord() {
+        // 重置录制状态
+        this.recordedAudio = null;
+        this.mixedAudioUrl = null; // 清除混音URL
+        this.audioChunks = [];
+        
+        // 隐藏操作按钮
+        const vocalActions = document.getElementById('vocalActions');
+        if (vocalActions) vocalActions.style.display = 'none';
+        
+        // 禁用播放按钮
+        const playBtn = document.getElementById('playRecordBtn');
+        if (playBtn) playBtn.disabled = true;
+        
+        // 重置状态显示
+        this.updateRecorderStatus('ready');
+        
+        // 移除混音结果
+        const mergeResult = document.querySelector('.merge-result');
+        if (mergeResult) mergeResult.remove();
+        
+        this.showNotification('🔄 已重置，可以重新录制', 'info');
+    }
+
+    setupAudioVisualizer(stream) {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = this.audioContext.createMediaStreamSource(stream);
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 256;
+            source.connect(this.analyser);
+            
+            const bufferLength = this.analyser.frequencyBinCount;
+            this.dataArray = new Uint8Array(bufferLength);
+            
+            this.drawVisualizer();
+        } catch (error) {
+            console.warn('可视化初始化失败:', error);
+        }
+    }
+
+    drawVisualizer() {
+        const canvas = document.getElementById('visualizerCanvas');
+        if (!canvas || !this.analyser) return;
+        
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        const draw = () => {
+            if (!this.isRecording) return;
+            
+            this.animationId = requestAnimationFrame(draw);
+            
+            this.analyser.getByteFrequencyData(this.dataArray);
+            
+            ctx.fillStyle = 'rgba(26, 31, 62, 0.2)';
+            ctx.fillRect(0, 0, width, height);
+            
+            const barWidth = (width / this.dataArray.length) * 2.5;
+            let barHeight;
+            let x = 0;
+            
+            for (let i = 0; i < this.dataArray.length; i++) {
+                barHeight = (this.dataArray[i] / 255) * height;
+                
+                const gradient = ctx.createLinearGradient(0, height, 0, height - barHeight);
+                gradient.addColorStop(0, '#667eea');
+                gradient.addColorStop(1, '#764ba2');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+                
+                x += barWidth + 1;
+            }
+        };
+        
+        draw();
+    }
+
+    stopVisualizer() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        if (this.audioContext) {
+            this.audioContext.close();
+        }
+    }
+
+    updateRecorderStatus(status) {
+        const statusEl = document.getElementById('recorderStatus');
+        if (!statusEl) return;
+        
+        const icon = statusEl.querySelector('.status-icon');
+        const text = statusEl.querySelector('.status-text');
+        
+        const statusMap = {
+            ready: { icon: '🎙️', text: '准备就绪' },
+            recording: { icon: '🔴', text: '录制中...' },
+            stopped: { icon: '✅', text: '录制完成' }
+        };
+        
+        const config = statusMap[status];
+        if (config) {
+            icon.textContent = config.icon;
+            text.textContent = config.text;
+        }
+    }
+
+    startTimer() {
+        const timerEl = document.getElementById('recorderTimer');
+        if (!timerEl) return;
+        
+        this.timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const seconds = (elapsed % 60).toString().padStart(2, '0');
+            timerEl.textContent = `${minutes}:${seconds}`;
+        }, 1000);
+    }
+
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+
+    // 延迟工具方法
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 

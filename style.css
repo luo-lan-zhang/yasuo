@@ -809,6 +809,176 @@ audio#finalAudioPlayer::-webkit-media-controls-panel {
     justify-content: center;
 }
 
+/* ========== 人声录制模块 ========= */
+.vocal-recording-section {
+    background: linear-gradient(135deg, rgba(237, 137, 54, 0.1), rgba(245, 101, 101, 0.1));
+    border: 2px solid var(--warning);
+}
+
+.vocal-recorder-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.recorder-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 30px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+}
+
+.recorder-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.recorder-status .status-icon {
+    font-size: 48px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.recorder-status .status-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.recorder-timer {
+    font-size: 48px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--accent-primary);
+    text-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+}
+
+.recorder-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.btn-record,
+.btn-stop,
+.btn-play {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-record {
+    background: linear-gradient(135deg, #f56565, #e53e3e);
+    color: white;
+}
+
+.btn-record:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(245, 101, 101, 0.4);
+}
+
+.btn-record:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-stop {
+    background: linear-gradient(135deg, #ed8936, #dd6b20);
+    color: white;
+}
+
+.btn-stop:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(237, 137, 54, 0.4);
+}
+
+.btn-stop:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-play {
+    background: linear-gradient(135deg, #48bb78, #38a169);
+    color: white;
+}
+
+.btn-play:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(72, 187, 120, 0.4);
+}
+
+.btn-play:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-icon {
+    font-size: 18px;
+}
+
+.recorder-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 12px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent-primary);
+}
+
+.audio-visualizer {
+    width: 100%;
+    height: 150px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    position: relative;
+}
+
+#visualizerCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.vocal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.merge-result {
+    margin-top: 25px;
+    padding: 25px;
+    background: linear-gradient(135deg, rgba(72, 187, 120, 0.15), rgba(66, 153, 225, 0.15));
+    border: 2px solid var(--success);
+    border-radius: var(--radius-lg);
+    animation: slideUp 0.5s ease;
+}
+
+.merge-result h4 {
+    font-size: 18px;
+    margin-bottom: 15px;
+    color: var(--success);
+}
+
 /* ========== 历史侧边栏 ========== */
 .history-sidebar {
     position: fixed;
@@ -923,6 +1093,166 @@ audio#finalAudioPlayer::-webkit-media-controls-panel {
 .overlay.show {
     opacity: 1;
     visibility: visible;
+}
+
+/* ========== API配置面板 ========= */
+.api-config-sidebar {
+    position: fixed;
+    top: 0;
+    right: -500px;
+    width: 500px;
+    height: 100vh;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
+    z-index: 2000;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.api-config-sidebar.open {
+    right: 0;
+}
+
+.api-config-content {
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.config-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.config-section h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.api-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.api-option {
+    display: flex;
+    align-items: start;
+    gap: 12px;
+    padding: 15px;
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.api-option:hover {
+    border-color: var(--accent-primary);
+}
+
+.api-option input[type="radio"] {
+    margin-top: 3px;
+    accent-color: var(--accent-primary);
+}
+
+.api-option input[type="radio"]:checked + .option-label {
+    color: var(--text-primary);
+}
+
+.option-label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.option-label strong {
+    font-size: 14px;
+}
+
+.option-label small {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.config-section input,
+.config-section select {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.config-section input:focus,
+.config-section select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.config-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.config-hint a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.config-hint a:hover {
+    text-decoration: underline;
+}
+
+.config-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.config-info {
+    padding: 20px;
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid var(--accent-primary);
+    border-radius: var(--radius-md);
+}
+
+.config-info h4 {
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.config-info ul {
+    list-style: none;
+    padding: 0;
+}
+
+.config-info li {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 6px 0;
+    padding-left: 20px;
+    position: relative;
+}
+
+.config-info li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--accent-primary);
+    font-weight: bold;
 }
 
 /* ========== 响应式设计 ========== */

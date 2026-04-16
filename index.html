@@ -17,6 +17,9 @@
             <span class="badge">多智能体协作系统</span>
         </div>
         <div class="header-right">
+            <button class="btn-icon" id="apiConfigBtn" title="AI API配置">
+                ⚙️
+            </button>
             <button class="btn-icon" id="historyBtn" title="历史作品">
                 📚
             </button>
@@ -443,7 +446,7 @@
             <section class="agent-section" id="resultSection">
                 <div class="section-header">
                     <h2>✨ 创作成果</h2>
-                    <p class="subtitle">完整的音乐作品方案 + 最终编曲录音</p>
+                    <p class="subtitle">完整的音乐作品方案 + 最终编曲录音 + 人声录制</p>
                 </div>
 
                 <div class="result-container" id="resultContainer">
@@ -466,6 +469,96 @@
         </div>
         <div class="history-list" id="historyList"></div>
     </div>
+    
+    <!-- API配置面板 -->
+    <div class="api-config-sidebar" id="apiConfigSidebar">
+        <div class="history-header">
+            <h3>⚙️ AI API配置</h3>
+            <button class="close-btn" id="closeApiConfig">✕</button>
+        </div>
+        <div class="api-config-content">
+            <div class="config-section">
+                <h4>🤖 选择AI引擎</h4>
+                <div class="api-options">
+                    <label class="api-option">
+                        <input type="radio" name="apiEngine" value="local" checked>
+                        <span class="option-label">
+                            <strong>本地模板引擎</strong>
+                            <small>免费、快速、离线可用</small>
+                        </span>
+                    </label>
+                    <label class="api-option">
+                        <input type="radio" name="apiEngine" value="openai">
+                        <span class="option-label">
+                            <strong>OpenAI GPT-4</strong>
+                            <small>质量最高、需付费</small>
+                        </span>
+                    </label>
+                    <label class="api-option">
+                        <input type="radio" name="apiEngine" value="anthropic">
+                        <span class="option-label">
+                            <strong>Claude 3 Opus</strong>
+                            <small>创意性强、需付费</small>
+                        </span>
+                    </label>
+                    <label class="api-option">
+                        <input type="radio" name="apiEngine" value="huggingface">
+                        <span class="option-label">
+                            <strong>Hugging Face</strong>
+                            <small>免费额度、中等质量</small>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="config-section" id="openaiConfig" style="display: none;">
+                <h4>🔑 OpenAI API Key</h4>
+                <input type="password" id="openaiApiKey" placeholder="sk-..." />
+                <select id="openaiModel">
+                    <option value="gpt-4">GPT-4 (推荐)</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo (更快)</option>
+                </select>
+                <p class="config-hint">从 <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI官网</a> 获取API Key</p>
+            </div>
+
+            <div class="config-section" id="anthropicConfig" style="display: none;">
+                <h4>🔑 Anthropic API Key</h4>
+                <input type="password" id="anthropicApiKey" placeholder="sk-ant-..." />
+                <select id="anthropicModel">
+                    <option value="claude-3-opus-20240229">Claude 3 Opus (最强)</option>
+                    <option value="claude-3-sonnet-20240229">Claude 3 Sonnet (平衡)</option>
+                    <option value="claude-3-haiku-20240307">Claude 3 Haiku (最快)</option>
+                </select>
+                <p class="config-hint">从 <a href="https://console.anthropic.com/" target="_blank">Anthropic官网</a> 获取API Key</p>
+            </div>
+
+            <div class="config-section" id="huggingfaceConfig" style="display: none;">
+                <h4>🔑 Hugging Face API Token</h4>
+                <input type="password" id="huggingfaceApiKey" placeholder="hf_..." />
+                <select id="huggingfaceModel">
+                    <option value="gpt2">GPT-2 (通用)</option>
+                    <option value="facebook/bart-large-cnn">BART (文本生成)</option>
+                </select>
+                <p class="config-hint">从 <a href="https://huggingface.co/settings/tokens" target="_blank">Hugging Face</a> 获取Token</p>
+            </div>
+
+            <div class="config-actions">
+                <button class="btn-primary btn-full" id="saveApiConfig">💾 保存配置</button>
+                <button class="btn-sm btn-full" id="testApiConnection">🧪 测试连接</button>
+            </div>
+
+            <div class="config-info">
+                <h4>ℹ️ 说明</h4>
+                <ul>
+                    <li>API Key仅存储在浏览器本地，不会上传到服务器</li>
+                    <li>使用API可生成更专业、更有创意的歌词和编曲</li>
+                    <li>如未配置API，将自动使用本地模板引擎</li>
+                    <li>建议先测试连接是否成功</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
     <div class="overlay" id="overlay"></div>
 
     <script src="script.js"></script>
