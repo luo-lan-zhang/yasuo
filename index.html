@@ -3,65 +3,289 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>恋爱心动测试</title>
+  <title>AI Music Studio - 智能音乐创作</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- 答题页 -->
-<div class="page" id="quizPage">
-  <div class="card">
-    <div class="title">💓 恋爱心动测试</div>
-    <div class="subtitle">测测你的恋爱属性</div>
-
-    <div class="question">
-      <p>1. 遇到喜欢的人你会？</p>
-      <label class="opt"><input type="radio" name="q1" value="1">主动靠近</label>
-      <label class="opt"><input type="radio" name="q1" value="2">偷偷暗恋</label>
-      <label class="opt"><input type="radio" name="q1" value="3">忽冷忽热</label>
+<div class="app-container">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">🎵</div>
+      <h1>AI Music<br>Studio</h1>
     </div>
+    
+    <nav class="nav-menu">
+      <div class="nav-item active" data-section="create">
+        <span class="nav-icon">✨</span>
+        <span>创作中心</span>
+      </div>
+      <div class="nav-item" data-section="library">
+        <span class="nav-icon">📚</span>
+        <span>我的作品</span>
+      </div>
+    </nav>
 
-    <div class="question">
-      <p>2. 吵架后你会？</p>
-      <label class="opt"><input type="radio" name="q2" value="1">主动道歉</label>
-      <label class="opt"><input type="radio" name="q2" value="2">等对方哄</label>
-      <label class="opt"><input type="radio" name="q2" value="3">冷静沟通</label>
+    <div class="api-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="apiStatusText">演示模式</span>
     </div>
+  </aside>
 
-    <div class="question">
-      <p>3. 你更看重？</p>
-      <label class="opt"><input type="radio" name="q3" value="1">颜值氛围</label>
-      <label class="opt"><input type="radio" name="q3" value="2">温柔体贴</label>
-      <label class="opt"><input type="radio" name="q3" value="3">能力担当</label>
-    </div>
+  <!-- 主内容区 -->
+  <main class="main-content">
+    
+    <!-- 创作中心 -->
+    <section class="section create-section active" id="createSection">
+      <header class="section-header">
+        <h2>开始创作</h2>
+        <p class="section-subtitle">让 AI 帮你写出动人的歌词和编曲</p>
+      </header>
 
-    <div class="question">
-      <p>4. 恋爱中你是？</p>
-      <label class="opt"><input type="radio" name="q4" value="1">超粘人</label>
-      <label class="opt"><input type="radio" name="q4" value="2">很独立</label>
-      <label class="opt"><input type="radio" name="q4" value="3">刚刚好</label>
-    </div>
+      <div class="creation-workspace">
+        <!-- 左侧：输入面板 -->
+        <div class="input-panel glass-card">
+          <h3 class="panel-title">🎯 创作参数</h3>
+          
+          <div class="form-group">
+            <label for="theme">
+              <span class="label-icon">💡</span>
+              歌曲主题
+            </label>
+            <input type="text" id="theme" placeholder="例如：夏日的海风、深夜的思念...">
+          </div>
 
-    <div class="question">
-      <p>5. 约会更喜欢？</p>
-      <label class="opt"><input type="radio" name="q5" value="1">安静咖啡</label>
-      <label class="opt"><input type="radio" name="q5" value="2">逛街打卡</label>
-      <label class="opt"><input type="radio" name="q5" value="3">散步看电影</label>
-    </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="emotion">
+                <span class="label-icon">💭</span>
+                情感基调
+              </label>
+              <select id="emotion">
+                <option value="happy">😊 欢快喜悦</option>
+                <option value="sad">😢 忧伤抒情</option>
+                <option value="romantic">💕 浪漫温馨</option>
+                <option value="energetic">⚡ 激情活力</option>
+                <option value="melancholy">🌧️ 忧郁沉思</option>
+                <option value="hopeful">🌟 充满希望</option>
+              </select>
+            </div>
 
-    <button class="submit-btn" id="submit">生成结果</button>
-  </div>
-</div>
+            <div class="form-group">
+              <label for="style">
+                <span class="label-icon">🎸</span>
+                音乐风格
+              </label>
+              <select id="style">
+                <option value="pop">流行 Pop</option>
+                <option value="rock">摇滚 Rock</option>
+                <option value="ballad">抒情 Ballad</option>
+                <option value="rnb">R&B</option>
+                <option value="folk">民谣 Folk</option>
+                <option value="electronic">电子 Electronic</option>
+              </select>
+            </div>
+          </div>
 
-<!-- 结果页 -->
-<div class="page" id="resultPage">
-  <div class="result-card">
-    <div class="heart">💖</div>
-    <h2 class="result-title" id="type">你的类型</h2>
-    <div class="result-tag" id="tag">标签</div>
-    <div class="result-text" id="analysis">分析内容</div>
-    <button class="reset-btn" id="reset">再来一次</button>
-  </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="tempo">
+                <span class="label-icon">🥁</span>
+                节奏速度
+              </label>
+              <select id="tempo">
+                <option value="slow">慢板 (60-80 BPM)</option>
+                <option value="medium" selected>中板 (80-120 BPM)</option>
+                <option value="fast">快板 (120-160 BPM)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="language">
+                <span class="label-icon">🌐</span>
+                语言
+              </label>
+              <select id="language">
+                <option value="chinese">中文</option>
+                <option value="english">English</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="generate-btn" id="generateBtn">
+            <span class="btn-icon">🚀</span>
+            <span class="btn-text">开始 AI 创作</span>
+          </button>
+        </div>
+
+        <!-- 右侧：结果展示 -->
+        <div class="result-panel" id="resultPanel">
+          
+          <!-- 空状态 -->
+          <div class="empty-state" id="emptyState">
+            <div class="empty-icon">🎼</div>
+            <h3>准备好创作了吗？</h3>
+            <p>在左侧填写创作参数，AI 将为你生成专属歌词和编曲建议</p>
+          </div>
+
+          <!-- 加载状态 -->
+          <div class="loading-state" id="loadingState" style="display: none;">
+            <div class="audio-visualizer">
+              <div class="bar"></div>
+              <div class="bar"></div>
+              <div class="bar"></div>
+              <div class="bar"></div>
+              <div class="bar"></div>
+            </div>
+            <p class="loading-text">AI 正在创作中...</p>
+            <p class="loading-subtext">分析情感 · 构思歌词 · 编排和弦</p>
+          </div>
+
+          <!-- 结果内容 -->
+          <div class="result-content" id="resultContent" style="display: none;">
+            
+            <!-- 音频播放器卡片 -->
+            <div class="result-card audio-card glass-card">
+              <div class="card-header">
+                <div class="header-left">
+                  <span class="card-icon">🎵</span>
+                  <h3>生成的歌曲</h3>
+                </div>
+              </div>
+              
+              <div class="audio-player-container" id="audioPlayerContainer">
+                <div class="album-art">
+                  <div class="music-note-animation">
+                    <span>♪</span>
+                    <span>♫</span>
+                    <span>♪</span>
+                  </div>
+                </div>
+                
+                <div class="player-controls">
+                  <div class="track-info">
+                    <div class="track-title" id="trackTitle">未命名歌曲</div>
+                    <div class="track-artist" id="trackArtist">AI Music Studio</div>
+                  </div>
+                  
+                  <div class="progress-container">
+                    <div class="progress-bar" id="progressBar">
+                      <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="time-display">
+                      <span id="currentTime">0:00</span>
+                      <span>/</span>
+                      <span id="duration">0:00</span>
+                    </div>
+                  </div>
+                  
+                  <div class="control-buttons">
+                    <button class="control-btn" id="playBtn" title="播放/暂停">
+                      <span class="play-icon">▶️</span>
+                    </button>
+                    <button class="control-btn" id="downloadBtn" title="下载音频">
+                      💾
+                    </button>
+                    <button class="control-btn" id="regenerateAudio" title="重新生成">
+                      🔄
+                    </button>
+                  </div>
+                </div>
+                
+                <audio id="audioPlayer" preload="none"></audio>
+              </div>
+              
+              <div class="generating-status" id="generatingStatus" style="display: none;">
+                <div class="audio-wave">
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                  <div class="wave-bar"></div>
+                </div>
+                <p>正在生成音频...</p>
+                <p class="status-subtext">这可能需要 30-60 秒</p>
+              </div>
+            </div>
+            
+            <!-- 歌词卡片 -->
+            <div class="result-card lyrics-card glass-card">
+              <div class="card-header">
+                <div class="header-left">
+                  <span class="card-icon">📝</span>
+                  <h3>生成歌词</h3>
+                </div>
+                <div class="header-actions">
+                  <button class="icon-btn" id="regenerateLyrics" title="重新生成">
+                    🔄
+                  </button>
+                  <button class="icon-btn" id="copyLyrics" title="复制歌词">
+                    📋
+                  </button>
+                </div>
+              </div>
+              <div class="lyrics-body" id="lyricsBody"></div>
+            </div>
+
+            <!-- 编曲建议卡片 -->
+            <div class="result-card arrangement-card glass-card">
+              <div class="card-header">
+                <div class="header-left">
+                  <span class="card-icon">🎹</span>
+                  <h3>编曲方案</h3>
+                </div>
+              </div>
+              
+              <div class="arrangement-grid">
+                <div class="arrange-item">
+                  <h4>🎼 和弦进行</h4>
+                  <div class="chord-display" id="chordDisplay"></div>
+                </div>
+
+                <div class="arrange-item">
+                  <h4>🥁 鼓点节奏</h4>
+                  <div class="rhythm-display" id="rhythmDisplay"></div>
+                </div>
+
+                <div class="arrange-item full-width">
+                  <h4>🎸 乐器配置</h4>
+                  <div class="instrument-tags" id="instrumentTags"></div>
+                </div>
+
+                <div class="arrange-item full-width">
+                  <h4>📊 曲式结构</h4>
+                  <div class="structure-timeline" id="structureTimeline"></div>
+                </div>
+
+                <div class="arrange-item full-width">
+                  <h4>💡 制作要点</h4>
+                  <ul class="tips-list" id="tipsList"></ul>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 我的作品 -->
+    <section class="section library-section" id="librarySection">
+      <header class="section-header">
+        <h2>我的作品</h2>
+        <p class="section-subtitle">保存的创作历史</p>
+      </header>
+      <div class="library-content" id="libraryContent">
+        <div class="library-empty glass-card">
+          <div class="empty-icon">📂</div>
+          <h3>暂无作品</h3>
+          <p>开始创作后，作品会自动保存在这里</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
 </div>
 
 <script src="script.js"></script>
