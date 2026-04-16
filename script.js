@@ -1333,7 +1333,36 @@ class MusicAgentsController {
         const container = document.getElementById('resultContainer');
         const work = this.currentWork;
 
+        // 生成音频
+        const audioUrl = this.generateAudio(work);
+
         container.innerHTML = `
+            <!-- 最终编曲录音 -->
+            <div class="result-section audio-result-section" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15)); border: 2px solid var(--accent-primary);">
+                <h3>🎵 最终编曲录音</h3>
+                <div class="audio-player-wrapper">
+                    <div class="album-art-large">
+                        <div class="music-notes">
+                            <span>♪</span>
+                            <span>♫</span>
+                            <span>♪</span>
+                        </div>
+                    </div>
+                    <div class="player-info">
+                        <div class="track-title">${work.title || work.params.theme}</div>
+                        <div class="track-meta">${work.params.genre} · ${work.params.emotion} · ${work.arrangement.bpm} BPM</div>
+                    </div>
+                    <audio id="finalAudioPlayer" controls preload="auto">
+                        <source src="${audioUrl}" type="audio/wav">
+                        您的浏览器不支持音频播放
+                    </audio>
+                    <div class="audio-actions">
+                        <button class="btn-sm" onclick="window.app.downloadAudio()">💾 下载音频</button>
+                        <button class="btn-sm" onclick="window.app.regenerateAudio()">🔄 重新生成</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="result-section">
                 <h3>📝 歌词作品</h3>
                 <div class="result-content">${work.lyrics.replace(/\n/g, '<br>')}</div>
@@ -1356,9 +1385,17 @@ class MusicAgentsController {
 
             <div style="display: flex; gap: 15px; margin-top: 20px;">
                 <button class="btn-primary" onclick="window.app.copyAllResults()">📋 复制全部</button>
-                <button class="btn-sm" onclick="window.app.downloadResults()">💾 下载</button>
+                <button class="btn-sm" onclick="window.app.downloadResults()">💾 下载文本</button>
             </div>
         `;
+
+        // 自动播放音频
+        setTimeout(() => {
+            const audioPlayer = document.getElementById('finalAudioPlayer');
+            if (audioPlayer) {
+                audioPlayer.volume = 0.7;
+            }
+        }, 500);
     }
 
     saveToHistory() {
@@ -1480,6 +1517,227 @@ ${this.auditAgent.formatAuditReport(this.currentWork.audit)}
         URL.revokeObjectURL(url);
         
         this.showNotification('💾 下载成功', 'success');
+    }
+
+    // ========== 音频生成功能 ==========
+    
+    generateAudio(work) {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const params = work.params;
+        const arrangement = work.arrangement;
+        
+        // 根据情绪和风格设置音频参数
+        const audioParams = this.getAudioParameters(params.emotion, params.genre, arrangement.bpm);
+        
+        // 生成30秒的音频
+        const duration = 30;
+        const sampleRate = audioContext.sampleRate;
+        const buffer = audioContext.createBuffer(2, sampleRate * duration, sampleRate);
+        
+        // 生成旋律音符
+        const melody = this.generateMelody(audioParams, duration);
+        
+        // 填充音频数据
+        for (let channel = 0; channel < 2; channel++) {
+            const data = buffer.getChannelData(channel);
+            for (let i = 0; i < data.length; i++) {
+                const t = i / sampleRate;
+                let sample = 0;
+                
+                // 合成多个音轨
+                melody.forEach(note => {
+                    if (t >= note.start && t < note.start + note.duration) {
+                        const envelope = this.getEnvelope(t, note.start, note.duration);
+                        const pan = channel === 0 ? note.pan : (1 - note.pan);
+                        sample += Math.sin(2 * Math.PI * note.frequency * t) * envelope * 0.08 * pan;
+                    }
+                });
+                
+                // 添加鼓点节奏
+                const drumPattern = this.getDrumSample(t, audioParams.bpm, channel);
+                sample += drumPattern;
+                
+                // 添加轻微的噪音增加真实感
+                sample += (Math.random() - 0.5) * 0.01;
+                
+                data[i] = Math.max(-1, Math.min(1, sample));
+            }
+        }
+        
+        // 转换为WAV格式
+        const wavBlob = this.bufferToWave(buffer, duration);
+        return URL.createObjectURL(wavBlob);
+    }
+
+    getAudioParameters(emotion, genre, bpm) {
+        const baseConfigs = {
+            happy: { baseFreq: 440, scale: 'major', brightness: 0.8 },
+            sad: { baseFreq: 330, scale: 'minor', brightness: 0.4 },
+            romantic: { baseFreq: 392, scale: 'major', brightness: 0.6 },
+            energetic: { baseFreq: 523, scale: 'major', brightness: 0.9 },
+            melancholy: { baseFreq: 294, scale: 'minor', brightness: 0.3 },
+            hopeful: { baseFreq: 466, scale: 'major', brightness: 0.7 }
+        };
+        
+        const config = baseConfigs[emotion] || baseConfigs.happy;
+        return {
+            ...config,
+            bpm: bpm,
+            beatDuration: 60 / bpm
+        };
+    }
+
+    generateMelody(params, duration) {
+        const notes = [];
+        const scales = {
+            major: [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25],
+            minor: [261.63, 293.66, 311.13, 349.23, 392.00, 415.30, 466.16, 523.25]
+        };
+        
+        const scale = scales[params.scale] || scales.major;
+        const beatDuration = params.beatDuration;
+        
+        // 生成旋律音符（30秒）
+        for (let i = 0; i < duration / beatDuration; i++) {
+            const noteIndex = Math.floor(Math.random() * scale.length);
+            const octave = Math.random() > 0.7 ? 2 : 1;
+            const frequency = scale[noteIndex] * octave;
+            const start = i * beatDuration;
+            const noteDuration = beatDuration * (Math.random() > 0.6 ? 2 : 1);
+            const pan = 0.3 + Math.random() * 0.4; // 立体声位置
+            
+            notes.push({
+                frequency,
+                start,
+                duration: Math.min(noteDuration, duration - start),
+                pan
+            });
+        }
+        
+        return notes;
+    }
+
+    getEnvelope(t, start, duration) {
+        const attack = 0.05;
+        const release = 0.1;
+        const noteTime = t - start;
+        
+        if (noteTime < attack) {
+            return noteTime / attack;
+        } else if (noteTime > duration - release) {
+            return (duration - noteTime) / release;
+        }
+        return 1;
+    }
+
+    getDrumSample(t, bpm, channel) {
+        const beatDuration = 60 / bpm;
+        const beatInMeasure = (t % (beatDuration * 4)) / beatDuration;
+        
+        let sample = 0;
+        
+        // Kick drum (on beats 1 and 3)
+        if (Math.abs(beatInMeasure - 0) < 0.1 || Math.abs(beatInMeasure - 2) < 0.1) {
+            const kickEnv = Math.exp(-(t % beatDuration) * 20);
+            sample += Math.sin(2 * Math.PI * 60 * (t % beatDuration)) * kickEnv * 0.3;
+        }
+        
+        // Snare (on beats 2 and 4)
+        if (Math.abs(beatInMeasure - 1) < 0.1 || Math.abs(beatInMeasure - 3) < 0.1) {
+            const snareEnv = Math.exp(-(t % beatDuration) * 15);
+            sample += (Math.random() - 0.5) * snareEnv * 0.2;
+        }
+        
+        // Hi-hat (every 8th note)
+        if ((t * bpm / 60) % 0.5 < 0.1) {
+            const hatEnv = Math.exp(-(t % (beatDuration / 2)) * 30);
+            sample += (Math.random() - 0.5) * hatEnv * 0.1;
+        }
+        
+        return sample;
+    }
+
+    bufferToWave(buffer, duration) {
+        const numOfChan = buffer.numberOfChannels;
+        const length = buffer.length * numOfChan * 2 + 44;
+        const bufferArray = new ArrayBuffer(length);
+        const view = new DataView(bufferArray);
+        let pos = 0;
+
+        function setUint16(data) {
+            view.setUint16(pos, data, true);
+            pos += 2;
+        }
+
+        function setUint32(data) {
+            view.setUint32(pos, data, true);
+            pos += 4;
+        }
+
+        // Write WAV header
+        setUint32(0x46464952); // "RIFF"
+        setUint32(length - 8); // file length - 8
+        setUint32(0x45564157); // "WAVE"
+        setUint32(0x20746d66); // "fmt "
+        setUint32(16); // chunk size
+        setUint16(1); // PCM format
+        setUint16(numOfChan);
+        setUint32(buffer.sampleRate);
+        setUint32(buffer.sampleRate * 2 * numOfChan); // byte rate
+        setUint16(numOfChan * 2); // block align
+        setUint16(16); // bits per sample
+        setUint32(0x61746164); // "data"
+        setUint32(length - pos - 4);
+
+        // Write audio data
+        for (let i = 0; i < buffer.length; i++) {
+            for (let channel = 0; channel < numOfChan; channel++) {
+                const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                view.setInt16(pos, sample * 0x7FFF, true);
+                pos += 2;
+            }
+        }
+
+        return new Blob([bufferArray], { type: 'audio/wav' });
+    }
+
+    downloadAudio() {
+        const audioPlayer = document.getElementById('finalAudioPlayer');
+        if (!audioPlayer || !audioPlayer.src) {
+            this.showNotification('⚠️ 没有可下载的音频', 'warning');
+            return;
+        }
+        
+        const link = document.createElement('a');
+        link.href = audioPlayer.src;
+        link.download = `${this.currentWork?.title || '编曲录音'}.wav`;
+        link.click();
+        
+        this.showNotification('💾 音频下载成功', 'success');
+    }
+
+    async regenerateAudio() {
+        if (!this.currentWork) {
+            this.showNotification('⚠️ 请先生成作品', 'warning');
+            return;
+        }
+        
+        this.showNotification('🔄 正在重新生成音频...', 'info');
+        
+        // 重新生成音频
+        const audioUrl = this.generateAudio(this.currentWork);
+        
+        // 更新音频播放器
+        const audioPlayer = document.getElementById('finalAudioPlayer');
+        if (audioPlayer) {
+            audioPlayer.src = audioUrl;
+            audioPlayer.load();
+            setTimeout(() => {
+                audioPlayer.play();
+            }, 300);
+        }
+        
+        this.showNotification('✅ 音频重新生成完成', 'success');
     }
 
     showNotification(message, type = 'info') {
