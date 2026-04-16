@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频生成测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: white;
+        }
+        .test-btn {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: transform 0.2s;
+        }
+        .test-btn:hover {
+            transform: scale(1.05);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        audio {
+            width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 音频生成功能测试</h1>
+    
+    <div>
+        <button class="test-btn" onclick="testHappyAudio()">测试欢快音乐</button>
+        <button class="test-btn" onclick="testSadAudio()">测试忧伤音乐</button>
+        <button class="test-btn" onclick="testRomanticAudio()">测试浪漫音乐</button>
+    </div>
+    
+    <div class="status" id="status">点击按钮测试音频生成...</div>
+    
+    <audio id="audioPlayer" controls></audio>
+
+    <script>
+        // 简化的音频生成测试
+        function generateTestAudio(baseFreq, tempo, duration = 5) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            const buffer = audioContext.createBuffer(2, sampleRate * duration, sampleRate);
+            
+            const beatDuration = 60 / tempo;
+            const notes = [];
+            
+            // 生成旋律
+            for (let i = 0; i < duration / beatDuration; i++) {
+                const freq = baseFreq * Math.pow(2, Math.floor(Math.random() * 7) / 12);
+                notes.push({
+                    frequency: freq,
+                    start: i * beatDuration,
+                    duration: beatDuration
+                });
+            }
+            
+            // 填充音频数据
+            for (let channel = 0; channel < 2; channel++) {
+                const data = buffer.getChannelData(channel);
+                for (let i = 0; i < data.length; i++) {
+                    const t = i / sampleRate;
+                    let sample = 0;
+                    
+                    notes.forEach(note => {
+                        if (t >= note.start && t < note.start + note.duration) {
+                            const envelope = Math.min(1, (t - note.start) / 0.05) * 
+                                           Math.min(1, (note.start + note.duration - t) / 0.05);
+                            sample += Math.sin(2 * Math.PI * note.frequency * t) * envelope * 0.1;
+                        }
+                    });
+                    
+                    data[i] = sample;
+                }
+            }
+            
+            return buffer;
+        }
+        
+        function bufferToWave(buffer, duration) {
+            const numOfChan = buffer.numberOfChannels;
+            const length = buffer.length * numOfChan * 2 + 44;
+            const bufferArray = new ArrayBuffer(length);
+            const view = new DataView(bufferArray);
+            let pos = 0;
+            
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+            
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+            
+            setUint32(0x46464952);
+            setUint32(length - 8);
+            setUint32(0x45564157);
+            setUint32(0x20746d66);
+            setUint32(16);
+            setUint16(1);
+            setUint16(numOfChan);
+            setUint32(buffer.sampleRate);
+            setUint32(buffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2);
+            setUint16(16);
+            setUint32(0x61746164);
+            setUint32(length - pos - 4);
+            
+            for (let i = 0; i < buffer.length; i++) {
+                for (let channel = 0; channel < numOfChan; channel++) {
+                    const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                    view.setInt16(pos, sample * 0x7FFF, true);
+                    pos += 2;
+                }
+            }
+            
+            return new Blob([bufferArray], { type: 'audio/wav' });
+        }
+        
+        function testHappyAudio() {
+            document.getElementById('status').textContent = '生成欢快音乐...';
+            const buffer = generateTestAudio(440, 120, 5);
+            const wavBlob = bufferToWave(buffer, 5);
+            const audioUrl = URL.createObjectURL(wavBlob);
+            
+            const audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.src = audioUrl;
+            audioPlayer.play();
+            
+            document.getElementById('status').textContent = '✅ 欢快音乐生成成功！正在播放...';
+        }
+        
+        function testSadAudio() {
+            document.getElementById('status').textContent = '生成忧伤音乐...';
+            const buffer = generateTestAudio(330, 70, 5);
+            const wavBlob = bufferToWave(buffer, 5);
+            const audioUrl = URL.createObjectURL(wavBlob);
+            
+            const audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.src = audioUrl;
+            audioPlayer.play();
+            
+            document.getElementById('status').textContent = '✅ 忧伤音乐生成成功！正在播放...';
+        }
+        
+        function testRomanticAudio() {
+            document.getElementById('status').textContent = '生成浪漫音乐...';
+            const buffer = generateTestAudio(392, 90, 5);
+            const wavBlob = bufferToWave(buffer, 5);
+            const audioUrl = URL.createObjectURL(wavBlob);
+            
+            const audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.src = audioUrl;
+            audioPlayer.play();
+            
+            document.getElementById('status').textContent = '✅ 浪漫音乐生成成功！正在播放...';
+        }
+    </script>
+</body>
+</html>

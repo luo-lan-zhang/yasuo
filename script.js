@@ -1,1204 +1,1536 @@
-// AI Music Studio - Complete Implementation
+// AI Music Agents - Multi-Agent System Implementation
 
-class AIMusicStudio {
-  constructor() {
-    this.currentResult = null;
-    this.init();
-  }
-
-  init() {
-    this.bindEvents();
-    this.loadHistory();
-  }
-
-  bindEvents() {
-    // 导航切换
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        const section = e.currentTarget.dataset.section;
-        this.switchSection(section);
-      });
-    });
-
-    // 生成按钮
-    document.getElementById('generateBtn').addEventListener('click', () => {
-      this.generateMusic();
-    });
-
-    // 重新生成歌词
-    document.getElementById('regenerateLyrics').addEventListener('click', () => {
-      this.generateMusic();
-    });
-
-    // 复制歌词
-    document.getElementById('copyLyrics').addEventListener('click', () => {
-      this.copyLyrics();
-    });
-
-    // 播放/暂停
-    document.getElementById('playBtn').addEventListener('click', () => {
-      this.togglePlay();
-    });
-
-    // 下载音频
-    document.getElementById('downloadBtn').addEventListener('click', () => {
-      this.downloadAudio();
-    });
-
-    // 重新生成音频
-    document.getElementById('regenerateAudio').addEventListener('click', () => {
-      this.regenerateAudio();
-    });
-
-    // 进度条点击
-    document.getElementById('progressBar').addEventListener('click', (e) => {
-      this.seekAudio(e);
-    });
-
-    // 音频时间更新
-    const audioPlayer = document.getElementById('audioPlayer');
-    audioPlayer.addEventListener('timeupdate', () => {
-      this.updateProgress();
-    });
-
-    audioPlayer.addEventListener('ended', () => {
-      this.onAudioEnded();
-    });
-  }
-
-  switchSection(sectionName) {
-    // 更新导航
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.classList.remove('active');
-      if (item.dataset.section === sectionName) {
-        item.classList.add('active');
-      }
-    });
-
-    // 更新内容区
-    document.querySelectorAll('.section').forEach(section => {
-      section.classList.remove('active');
-    });
-    document.getElementById(`${sectionName}Section`).classList.add('active');
-  }
-
-  async generateMusic() {
-    const theme = document.getElementById('theme').value.trim();
-    const emotion = document.getElementById('emotion').value;
-    const style = document.getElementById('style').value;
-    const tempo = document.getElementById('tempo').value;
-    const language = document.getElementById('language').value;
-
-    if (!theme) {
-      this.showNotification('⚠️ 请输入歌曲主题！', 'warning');
-      return;
+class LyricsAgent {
+    constructor() {
+        this.status = 'idle';
+        this.result = null;
     }
 
-    // 显示加载状态
-    this.showLoading();
+    async generate(params) {
+        this.setStatus('working');
+        await this.delay(1500);
 
-    try {
-      // 模拟AI处理延迟，提升用户体验
-      await this.delay(1500);
-
-      // 生成高质量歌词
-      const lyrics = this.generateHighQualityLyrics(theme, emotion, style, language);
-
-      // 生成专业编曲建议
-      const arrangement = this.generateProfessionalArrangement(emotion, style, tempo);
-
-      // 保存结果
-      this.currentResult = { 
-        lyrics, 
-        arrangement, 
-        theme, 
-        emotion, 
-        style,
-        language,
-        tempo
-      };
-
-      // 显示结果
-      this.displayResults(lyrics, arrangement);
-      
-      // 生成音频
-      await this.generateAudio(theme, emotion, style, lyrics);
-      
-      // 保存到历史
-      this.saveToHistory({ 
-        lyrics, 
-        arrangement, 
-        theme, 
-        emotion, 
-        style,
-        language,
-        tempo,
-        date: new Date().toISOString() 
-      });
-
-      this.showNotification('✅ 创作完成！', 'success');
-
-    } catch (error) {
-      console.error('生成失败:', error);
-      this.showNotification('❌ 生成失败，请重试', 'error');
-      this.showEmpty();
-    }
-  }
-
-  // 生成高质量歌词（使用智能模板系统）
-  generateHighQualityLyrics(theme, emotion, style, language) {
-    const templates = this.getAdvancedTemplates();
-    const key = `${emotion}_${style}`;
-    
-    let templateList = templates[key];
-    if (!templateList) {
-      // fallback 到同情感的其他风格
-      const fallbackKey = Object.keys(templates).find(k => k.startsWith(emotion));
-      templateList = templates[fallbackKey] || templates['happy_pop'];
+        const { theme, emotion, genre, keywords, language } = params;
+        const lyrics = this.createLyrics(theme, emotion, genre, keywords, language);
+        
+        this.result = lyrics;
+        this.setStatus('complete');
+        return lyrics;
     }
 
-    const template = templateList[Math.floor(Math.random() * templateList.length)];
-    let lyrics = template
-      .replace(/{theme}/g, theme)
-      .replace(/{Theme}/g, theme.charAt(0).toUpperCase() + theme.slice(1));
-    
-    // 如果是英文，转换歌词结构标记
-    if (language === 'english') {
-      lyrics = this.translateStructureMarks(lyrics);
-    }
-    
-    return lyrics;
-  }
+    createLyrics(theme, emotion, genre, keywords, language) {
+        const templates = this.getTemplates();
+        const key = `${emotion}_${genre}`;
+        let templateList = templates[key] || templates['happy_pop'];
+        const template = templateList[Math.floor(Math.random() * templateList.length)];
+        
+        let lyrics = template.replace(/{theme}/g, theme);
+        
+        if (keywords) {
+            const keywordList = keywords.split(/[,，]/).map(k => k.trim()).filter(k => k);
+            keywordList.forEach((kw, i) => {
+                lyrics = lyrics.replace(new RegExp(`{keyword${i}}`, 'g'), kw);
+            });
+        }
 
-  translateStructureMarks(lyrics) {
-    const translations = {
-      '【主歌】': '[Verse]',
-      '【副歌】': '[Chorus]',
-      '【桥段】': '[Bridge]',
-      '【结尾】': '[Outro]',
-      '【前奏】': '[Intro]'
-    };
-    
-    let translated = lyrics;
-    for (const [cn, en] of Object.entries(translations)) {
-      translated = translated.replace(new RegExp(cn, 'g'), en);
-    }
-    return translated;
-  }
+        const header = `【歌曲信息】
+主题：${theme}
+情绪：${this.getEmotionName(emotion)}
+风格：${this.getGenreName(genre)}
+语言：${language === 'chinese' ? '中文' : 'English'}
 
-  getAdvancedTemplates() {
-    return {
-      // 欢快 - 流行
-      'happy_pop': [
-        `【主歌】
+`;
+
+        return header + lyrics;
+    }
+
+    getTemplates() {
+        return {
+            'happy_pop': [
+                `【主歌1】
 阳光洒在窗台 {theme}的味道
 微风轻轻吹过嘴角上扬
 每一天都充满期待
 和你一起就是最美好的时光
+
+【主歌2】
+不需要太多言语表达
+一个眼神就能明白彼此
+{keyword0}在心中闪耀
+这份感觉永远不会消失
+
+【预副歌】
+啦啦啦 心情在舞蹈
+啦啦啦 幸福来敲门
 
 【副歌】
 {theme}像彩虹般绚烂
 照亮了我整个世界
 手牵手走过每个角落
 笑声在空中回荡不停歇
+{keyword1}让爱更浓烈
 
 【桥段】
+这一刻时间静止
+世界只剩下我和你
+{theme}的魔力无穷
+让我们紧紧相依
+
+【尾奏】
 啦啦啦 {theme}多美妙
-啦啦啦 心情在舞蹈
-啦啦啦 幸福来敲门
 啦啦啦 快乐围绕`,
 
-        `【主歌】
-{theme}的季节已经来到
+                `{theme}的季节已经来到
 空气中弥漫着甜蜜味道
 脚步轻快像小鸟飞翔
 心中的花朵正在绽放
 
 【副歌】
-不需要太多言语表达
-一个眼神就能明白彼此
-{theme}让我们更加靠近
-这份感觉永远不会消失
-
-【结尾】
 让我们一起唱这首歌
 把快乐传递给每个人
 {theme}的力量如此强大
 让全世界都感受到温暖`
-      ],
+            ],
 
-      // 忧伤 - 抒情
-      'sad_ballad': [
-        `【主歌】
+            'sad_ballad': [
+                `【主歌1】
 雨滴敲打着窗户
 {theme}的痛楚难以释怀
 手机里你的照片
 成了我最珍贵的负担
+
+【主歌2】
+深夜里的孤独感
+伤痕还在隐隐作痛
+街角的咖啡店
+再也不是我们的据点
+
+【预副歌】
+如果时间能够倒流
+我会做出不同选择
 
 【副歌】
 为什么结局是这样
 明明说过不会离开
 {theme}变成了遗憾
 只能在回忆里徘徊
+{keyword0}刺痛了心
 
 【桥段】
-如果时间能够倒流
-我会做出不同选择
-可惜现实没有如果
-只能学会放手接受`,
+也许某天我会忘记
+忘记曾经那么爱你
+但现在的我只能
+一个人慢慢疗伤
 
-        `【主歌】
-秋风扫过落叶纷飞
+【尾奏】
+{theme}随风而去
+留下无尽的思念`,
+
+                `秋风扫过落叶纷飞
 {theme}的碎片散落一地
 小提琴哀怨地哭泣
 像是在为我叹息
 
 【副歌】
-你说要走我无法挽留
-就像抓不住的沙粒
-{theme}终究要结束
-留下我一个人面对
-
-【结尾】
 眼泪无声地滑落
 打湿了枕边的信纸
 那些甜蜜的承诺
 如今变成了讽刺`
-      ],
+            ],
 
-      // 浪漫 - 流行
-      'romantic_pop': [
-        `【主歌】
+            'romantic_pop': [
+                `【主歌1】
 星光点缀着夜空
 {theme}的气息弥漫四周
 你的眼睛如此迷人
 让我沉醉无法自拔
 
-【副歌】
-轻轻牵起你的手
-感受心跳加速的节奏
-{theme}如此甜蜜
-像是吃了蜜糖一般
-
-【桥段】
-这一刻时间静止
-世界只剩下我和你
-{theme}的魔力无穷
-让我们紧紧相依`,
-
-        `【主歌】
+【主歌2】
 玫瑰花瓣飘落
-{theme}的氛围如此浪漫
+浪漫的氛围如此美好
 烛光晚餐的夜晚
 你的笑容比酒还醉人
 
-【副歌】
-不需要华丽的语言
-一个拥抱胜过千言
-{theme}在空气中发酵
-让我们的心更贴近
+【预副歌】
+心跳加速的节奏
+无法抗拒的吸引力
 
-【结尾】
+【副歌】
+轻轻牵起你的手
+感受{theme}的甜蜜
+像是吃了蜜糖一般
+这一刻永远铭记
+{keyword0}见证爱情
+
+【桥段】
 月下漫步的海滩
 海浪见证我们的爱
 {theme}永远不会褪色
-只会越来越浓烈`
-      ],
+只会越来越浓烈
 
-      // 激情 - 摇滚
-      'energetic_rock': [
-        `【主歌】
+【尾奏】
+{theme}永恒不变
+爱你到永远`,
+
+                `{theme}悄然降临身边
+萨克斯风温柔演奏
+为我们的爱情伴奏
+
+【副歌】
+十指相扣的温度
+传递着无尽的爱意
+{theme}的诗篇
+由我们共同书写`
+            ],
+
+            'energetic_rock': [
+                `【主歌1】
 能量爆发就在此刻
 {theme}的火焰熊熊燃烧
 电吉他嘶吼咆哮
 鼓点密集如雨点般落下
+
+【主歌2】
+舞台灯光闪烁
+能量充满全身
+贝斯线强劲有力
+带动每个人的脉搏
+
+【预副歌】
+准备好了吗
+让我们一起疯狂
 
 【副歌】
 跳起来甩起来
 把所有的压力都抛开
 {theme}让我们疯狂
 这一刻没有规则约束
+{keyword0}点燃激情
 
 【桥段】
 音量调到最大
 让全世界都听到
 {theme}的呐喊声
-震撼每一个人的心`,
+震撼每一个人的心
 
-        `【主歌】
-舞台灯光闪烁
-{theme}的能量充满全身
-贝斯线强劲有力
-带动每个人的脉搏
+【尾奏】
+{theme}永不熄灭
+摇滚精神万岁`,
 
-【副歌】
-汗水湿透了衣衫
-但我们毫不在意
-{theme}就是要释放
-就是要尽情狂欢
-
-【结尾】
-跟着节奏一起跳跃
+                `跟着节奏一起跳跃
 让热情燃烧整个夜晚
 {theme}没有极限
 只有不断的突破`
-      ],
+            ],
 
-      // 忧郁 - 民谣
-      'melancholy_folk': [
-        `【主歌】
+            'melancholy_folk': [
+                `【主歌1】
 老旧的木吉他
 弹奏着{theme}的忧伤
 窗外的梧桐树
 叶子一片片凋落
 
-【副歌】
-远方的你是否安好
-是否也会想起我
-{theme}像一杯苦茶
-越品越是回甘
-
-【结尾】
-岁月匆匆流逝
-带走了青春年华
-{theme}沉淀成诗
-写在泛黄的日记里`,
-
-        `【主歌】
+【主歌2】
 乡间的小路上
-{theme}的风轻轻吹过
+风轻轻吹过
 口琴声悠扬婉转
 诉说着过往的故事
 
+【预副歌】
+远方的你是否安好
+是否也会想起我
+
 【副歌】
-老房子的屋檐下
-燕子已经飞去南方
-{theme}如同秋雨
-绵绵不绝地下着
+{theme}像一杯苦茶
+越品越是回甘
+岁月匆匆流逝
+带走了青春年华
+{keyword0}沉淀成诗
 
 【桥段】
 坐在门槛上发呆
 回忆如潮水涌来
-{theme}虽然苦涩
-却是成长的印记`
-      ],
+虽然苦涩
+却是成长的印记
 
-      // 希望 - 流行
-      'hopeful_pop': [
-        `【主歌】
+【尾奏】
+{theme}写在日记里
+成为永恒的回忆`,
+
+                `{theme}如同秋雨
+绵绵不绝地下着
+老房子的屋檐下
+燕子已经飞去南方`
+            ],
+
+            'hopeful_pop': [
+                `【主歌1】
 黎明前的黑暗
 {theme}的光芒即将绽放
 新的旅程已开始
 充满无限的可能
+
+【主歌2】
+雨后的彩虹出现
+希望重新燃起
+每一次挫折考验
+都让我们更加坚强
+
+【预副歌】
+相信自己的力量
+没有什么不能实现
 
 【副歌】
 跌倒了再站起来
 失败是成功的垫脚石
 {theme}在心中燃烧
 指引我们前进方向
+{keyword0}带来光明
 
 【桥段】
-相信自己的力量
-没有什么不能实现
-{theme}的翅膀展开
-飞向更高的天空`,
-
-        `【主歌】
-雨后的彩虹出现
-{theme}的希望重新燃起
-每一次挫折考验
-都让我们更加坚强
-
-【副歌】
 前方的路还很长
 但只要坚持不放弃
-{theme}终会到来
+终会到来
 照亮黑暗的角落
 
-【结尾】
-手牵手一起前行
+【尾奏】
+{theme}展翅高飞
+梦想终将实现`,
+
+                `手牵手一起前行
 互相鼓励互相支持
 {theme}的种子发芽
 终将长成参天大树`
-      ],
-
-      // 欢快 - 电子
-      'happy_electronic': [
-        `【主歌】
-电子节拍响起
-{theme}的频率开始共振
-合成器音色迷幻
-带你进入快乐维度
-
-【副歌】
-BPM不断攀升
-心跳跟随节奏加速
-{theme}的电子波
-穿透身体的每个细胞
-
-【桥段】
-Drop即将来临
-准备好迎接冲击
-{theme}的能量爆发
-让舞池彻底沸腾`
-      ],
-
-      // 忧伤 - R&B
-      'sad_rnb': [
-        `【主歌】
-深夜里的孤独感
-{theme}的伤痕还在隐隐作痛
-街角的咖啡店
-再也不是我们的据点
-
-【副歌】
-删除了你的联系方式
-却删不掉心中的记忆
-{theme}像一场梦境
-醒来后只剩空虚
-
-【桥段】
-也许某天我会忘记
-忘记曾经那么爱你
-但现在的我只能
-一个人慢慢疗伤`
-      ],
-
-      // 浪漫 - 抒情
-      'romantic_ballad': [
-        `【主歌】
-樱花飘落的季节
-{theme}悄然降临身边
-萨克斯风温柔演奏
-为我们的爱情伴奏
-
-【副歌】
-你的发香随风飘散
-让我迷失在这氛围
-{theme}如同美酒
-越品越是让人沉醉
-
-【结尾】
-十指相扣的温度
-传递着无尽的爱意
-{theme}的诗篇
-由我们共同书写`
-      ],
-
-      // 激情 - 电子
-      'energetic_electronic': [
-        `【主歌】
-激光束划破黑暗
-{theme}的派对正式开始
-DJ掌控着全场
-每一个过渡都完美无瑕
-
-【副歌】
-低音炮震动胸腔
-高频音色刺激神经
-{theme}的电子流
-连接每一个灵魂
-
-【桥段】
-闭上眼睛感受
-让音乐带领方向
-{theme}的世界里
-没有束缚只有自由`
-      ],
-
-      // 忧郁 - 抒情
-      'melancholy_ballad': [
-        `【主歌】
-灰色的天空阴沉
-{theme}的乌云笼罩心头
-钢琴声缓慢沉重
-每一步都踩在心上
-
-【副歌】
-镜子里的自己
-眼神空洞失去光彩
-{theme}是一种状态
-无法挣脱的枷锁
-
-【结尾】
-走在无人的街道
-路灯拉长了身影
-{theme}如影随形
-挥之不去的阴霾`
-      ],
-
-      // 希望 - 民谣
-      'hopeful_folk': [
-        `【主歌】
-清晨的第一缕阳光
-{theme}的温暖照进心房
-木吉他的和弦明亮
-唱出对未来的憧憬
-
-【副歌】
-田野里的麦苗青青
-象征着生命的活力
-{theme}就在不远处
-等待着我们去发现
-
-【桥段】
-背上行囊出发
-追寻心中的梦想
-{theme}的指南针
-指向正确的方向`
-      ]
-    };
-  }
-
-  // 生成专业编曲方案
-  generateProfessionalArrangement(emotion, style, tempo) {
-    return {
-      chords: this.getChordProgression(emotion, style),
-      rhythm: this.getRhythmPattern(tempo),
-      instruments: this.getInstruments(style),
-      structure: this.getStructure(),
-      tips: this.getProductionTips(emotion)
-    };
-  }
-
-  getChordProgression(emotion, style) {
-    const progressions = {
-      happy: {
-        pop: "C - G - Am - F | C - G - F - G | C - Em - F - G",
-        rock: "E - B - C#m - A | E - B - A - B | E - G#m - A - B",
-        ballad: "F - C - Dm - Bb | F - C - Bb - C | F - Am - Bb - C",
-        electronic: "C - G - Am - F | C - G - F - G | C - Em - F - G",
-        rnb: "Fmaj7 - Em7 - Dm7 - Cmaj7 | Fmaj7 - G7 - Am7 - G7"
-      },
-      sad: {
-        pop: "Am - F - C - G | Am - F - G - F | Am - Dm - F - G",
-        ballad: "Dm - Bb - F - C | Dm - Bb - C - Bb | Dm - Gm - Bb - C",
-        rnb: "Am7 - Fmaj7 - Cmaj7 - G7 | Am7 - Dm7 - Fmaj7 - G7",
-        folk: "Em - C - G - D | Em - C - D - C | Em - Am - C - D"
-      },
-      romantic: {
-        pop: "C - Em - Am - G | C - Em - F - G | C - Am - F - G",
-        ballad: "Eb - Gm - Cm - Bb | Eb - Gm - Ab - Bb | Eb - Cm - Ab - Bb",
-        rnb: "Cmaj7 - Am7 - Fmaj7 - G7 | Cmaj7 - Em7 - Fmaj7 - G7"
-      },
-      energetic: {
-        rock: "A - E - F#m - D | A - E - D - E | A - C#m - D - E",
-        electronic: "Am - F - C - G | Am - F - G - F | Am - Dm - F - G",
-        pop: "G - D - Em - C | G - D - C - D | G - Bm - C - D"
-      },
-      melancholy: {
-        folk: "Em - C - G - D | Em - C - D - C | Em - Am - C - D",
-        ballad: "Bm - G - D - A | Bm - G - A - G | Bm - Em - G - A",
-        pop: "Am - F - C - G | Am - F - G - F | Am - Dm - F - G"
-      },
-      hopeful: {
-        pop: "G - D - Em - C | G - D - C - D | G - Bm - C - D",
-        folk: "C - G - Am - F | C - G - F - G | C - Em - F - G",
-        rock: "G - D - Em - C | G - D - C - D | G - Bm - C - D"
-      }
-    };
-
-    return progressions[emotion]?.[style] || progressions.happy.pop;
-  }
-
-  getRhythmPattern(tempo) {
-    const patterns = {
-      slow: {
-        desc: "慢板节奏 (60-80 BPM)",
-        pattern: "底鼓: X . . . | X . . . | X . . .\n军鼓: . . X . | . . X . | . . X .\n踩镲: X X X X | X X X X | X X X X",
-        feel: "舒缓、深情，适合抒情歌曲"
-      },
-      medium: {
-        desc: "中板节奏 (80-120 BPM)",
-        pattern: "底鼓: X . X . | X . . X | X . X .\n军鼓: . . X . | . . X . | . . X .\n踩镲: X X X X | X X X X | X X X X",
-        feel: "平衡、流畅，适合大多数流行歌曲"
-      },
-      fast: {
-        desc: "快板节奏 (120-160 BPM)",
-        pattern: "底鼓: X . X . | X X X . | X . X .\n军鼓: . X . X | . X . X | . X . X\n踩镲: X X X X | X X X X | X X X X",
-        feel: "活力、激情，适合摇滚和舞曲"
-      }
-    };
-
-    return patterns[tempo] || patterns.medium;
-  }
-
-  getInstruments(style) {
-    const instruments = {
-      pop: ["主唱", "钢琴/键盘", "原声吉他", "贝斯", "鼓组", "弦乐组"],
-      rock: ["主唱", "电吉他(主音)", "电吉他(节奏)", "贝斯", "鼓组", "键盘"],
-      ballad: ["主唱", "钢琴", "大提琴", "小提琴", "原声吉他", "轻柔鼓组"],
-      rnb: ["主唱", "键盘/合成器", "电吉他", "贝斯", "鼓机", "和声"],
-      folk: ["主唱", "原声吉他", "口琴/手风琴", "贝斯", "打击乐"],
-      electronic: ["主唱", "合成器lead", "合成器bass", "鼓机", "采样/音效"]
-    };
-
-    return instruments[style] || instruments.pop;
-  }
-
-  getStructure() {
-    return ["前奏 Intro", "主歌 Verse 1", "预副歌 Pre-Chorus", "副歌 Chorus", 
-            "主歌 Verse 2", "预副歌 Pre-Chorus", "副歌 Chorus", 
-            "桥段 Bridge", "副歌 Chorus", "尾奏 Outro"];
-  }
-
-  getProductionTips(emotion) {
-    const tips = {
-      happy: [
-        "使用明亮的音色，避免过于沉闷的低频",
-        "保持动态范围，让副歌更有冲击力",
-        "可以加入手拍、响指等元素增加活力",
-        "混音时让人声突出，保持清晰度",
-        "适当使用合唱效果增加空间感"
-      ],
-      sad: [
-        "使用混响营造空灵感，但不要过度",
-        "低频要控制好，避免浑浊",
-        "可以使用延迟效果增加情感深度",
-        "人声处理要细腻，保留呼吸声",
-        "考虑使用钢琴或弦乐作为主要伴奏"
-      ],
-      romantic: [
-        "温暖的音色是关键，避免尖锐的高频",
-        "可以使用立体声扩展增加宽度",
-        "适度的压缩让人声更亲密",
-        "加入环境音效增强氛围",
-        "和声编排要丰富但不喧宾夺主"
-      ],
-      energetic: [
-        "强烈的低频和清晰的打击乐是重点",
-        "使用侧链压缩创造泵动感",
-        "buildup 和 drop 的对比要明显",
-        "自动化控制滤波器增加变化",
-        "保持整体响度，但要避免失真"
-      ],
-      melancholy: [
-        "留白很重要，不要填得太满",
-        "使用原声乐器增加真实感",
-        "轻微的磁带饱和可以增加怀旧感",
-        "人声可以稍微靠后，营造距离感",
-        "考虑使用单声道元素增加聚焦"
-      ],
-      hopeful: [
-        "逐渐增加的编曲层次象征希望的增长",
-        "使用上升的音阶和和声进行",
-        "明亮的高频给人向上的感觉",
-        "可以在结尾加入合唱团效果",
-        "动态要从弱到强，体现突破感"
-      ]
-    };
-
-    return tips[emotion] || tips.happy;
-  }
-
-  showLoading() {
-    document.getElementById('emptyState').style.display = 'none';
-    document.getElementById('resultContent').style.display = 'none';
-    document.getElementById('loadingState').style.display = 'block';
-  }
-
-  showEmpty() {
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('resultContent').style.display = 'none';
-    document.getElementById('emptyState').style.display = 'block';
-  }
-
-  displayResults(lyrics, arrangement) {
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('emptyState').style.display = 'none';
-    
-    // 显示歌词
-    document.getElementById('lyricsBody').textContent = lyrics;
-    
-    // 显示和弦
-    document.getElementById('chordDisplay').textContent = arrangement.chords;
-    
-    // 显示节奏
-    const rhythmHtml = `
-      <div><strong>${arrangement.rhythm.desc}</strong></div>
-      <pre style="margin-top: 10px;">${arrangement.rhythm.pattern}</pre>
-      <div style="margin-top: 10px; font-style: italic; font-size: 13px;">感觉：${arrangement.rhythm.feel}</div>
-    `;
-    document.getElementById('rhythmDisplay').innerHTML = rhythmHtml;
-    
-    // 显示乐器
-    const instrHtml = arrangement.instruments.map(inst => 
-      `<span class="instr-tag">${inst}</span>`
-    ).join('');
-    document.getElementById('instrumentTags').innerHTML = instrHtml;
-    
-    // 显示结构
-    const structHtml = arrangement.structure.map((part, index) => `
-      ${index > 0 ? '<span class="struct-arrow">→</span>' : ''}
-      <span class="struct-part">${part}</span>
-    `).join('');
-    document.getElementById('structureTimeline').innerHTML = structHtml;
-    
-    // 显示制作建议
-    const tipsHtml = arrangement.tips.map(tip => `<li>${tip}</li>`).join('');
-    document.getElementById('tipsList').innerHTML = tipsHtml;
-    
-    // 显示结果区域
-    document.getElementById('resultContent').style.display = 'flex';
-  }
-
-  copyLyrics() {
-    if (!this.currentResult) return;
-    
-    const lyrics = this.currentResult.lyrics;
-    navigator.clipboard.writeText(lyrics).then(() => {
-      const btn = document.getElementById('copyLyrics');
-      const originalHTML = btn.innerHTML;
-      btn.innerHTML = '✓';
-      btn.style.background = '#48bb78';
-      btn.style.borderColor = '#48bb78';
-      
-      setTimeout(() => {
-        btn.innerHTML = originalHTML;
-        btn.style.background = '';
-        btn.style.borderColor = '';
-      }, 2000);
-      
-      this.showNotification('✅ 歌词已复制到剪贴板', 'success');
-    }).catch(err => {
-      console.error('复制失败:', err);
-      this.showNotification('❌ 复制失败，请手动复制', 'error');
-    });
-  }
-
-  saveToHistory(item) {
-    let history = JSON.parse(localStorage.getItem('music_history') || '[]');
-    history.unshift(item);
-    if (history.length > 20) history = history.slice(0, 20);
-    localStorage.setItem('music_history', JSON.stringify(history));
-    this.loadHistory();
-  }
-
-  loadHistory() {
-    const history = JSON.parse(localStorage.getItem('music_history') || '[]');
-    const container = document.getElementById('libraryContent');
-    
-    if (history.length === 0) {
-      container.innerHTML = `
-        <div class="library-empty glass-card">
-          <div class="empty-icon">📂</div>
-          <h3>暂无作品</h3>
-          <p>开始创作后，作品会自动保存在这里</p>
-        </div>
-      `;
-      return;
+            ]
+        };
     }
 
-    const emotionMap = {
-      happy: '欢快',
-      sad: '忧伤',
-      romantic: '浪漫',
-      energetic: '激情',
-      melancholy: '忧郁',
-      hopeful: '希望'
-    };
-
-    const styleMap = {
-      pop: '流行',
-      rock: '摇滚',
-      ballad: '抒情',
-      rnb: 'R&B',
-      folk: '民谣',
-      electronic: '电子'
-    };
-
-    container.innerHTML = history.map((item, index) => {
-      const date = new Date(item.date);
-      const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-      
-      return `
-        <div class="history-card" onclick="window.app.loadHistoryItem(${index})">
-          <div class="history-header">
-            <div>
-              <div class="history-title">${item.theme}</div>
-              <div class="history-date">${dateStr}</div>
-            </div>
-          </div>
-          <div class="history-tags">
-            <span class="history-tag">${emotionMap[item.emotion]}</span>
-            <span class="history-tag">${styleMap[item.style]}</span>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  loadHistoryItem(index) {
-    const history = JSON.parse(localStorage.getItem('music_history') || '[]');
-    const item = history[index];
-    
-    if (item) {
-      this.currentResult = item;
-      this.displayResults(item.lyrics, item.arrangement);
-      this.switchSection('create');
-      
-      // 填充表单
-      document.getElementById('theme').value = item.theme;
-      document.getElementById('emotion').value = item.emotion;
-      document.getElementById('style').value = item.style;
-      document.getElementById('tempo').value = item.tempo;
-      document.getElementById('language').value = item.language;
-    }
-  }
-
-  showNotification(message, type = 'info') {
-    // 创建通知元素
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 16px 24px;
-      background: ${type === 'success' ? '#48bb78' : type === 'error' ? '#f56565' : type === 'warning' ? '#ed8936' : '#667eea'};
-      color: white;
-      border-radius: 12px;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-      z-index: 10000;
-      animation: slideInRight 0.3s ease;
-      font-weight: 500;
-    `;
-
-    document.body.appendChild(notification);
-
-    // 3秒后移除
-    setTimeout(() => {
-      notification.style.animation = 'slideOutRight 0.3s ease';
-      setTimeout(() => notification.remove(), 300);
-    }, 3000);
-  }
-
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  // ========== 音频生成功能 ==========
-  
-  async generateAudio(theme, emotion, style, lyrics) {
-    const playerContainer = document.getElementById('audioPlayerContainer');
-    const generatingStatus = document.getElementById('generatingStatus');
-    
-    // 显示生成状态
-    playerContainer.style.display = 'none';
-    generatingStatus.style.display = 'block';
-    
-    try {
-      // 使用免费的音频生成 API
-      const audioUrl = await this.fetchAudioFromAPI(theme, emotion, style, lyrics);
-      
-      if (audioUrl) {
-        this.setupAudioPlayer(audioUrl, theme);
-        this.showNotification('🎵 音频生成成功！', 'success');
-      } else {
-        // 如果 API 失败，使用模拟音频
-        this.createDemoAudio(theme, emotion, style);
-      }
-    } catch (error) {
-      console.error('音频生成失败:', error);
-      // 降级到演示音频
-      this.createDemoAudio(theme, emotion, style);
-    } finally {
-      generatingStatus.style.display = 'none';
-      playerContainer.style.display = 'flex';
-    }
-  }
-
-  async fetchAudioFromAPI(theme, emotion, style, lyrics) {
-    // 这里可以使用真实的 AI 音乐生成 API
-    // 例如: Hugging Face MusicGen, Suno API 等
-    
-    // 示例：使用 Hugging Face MusicGen (需要 API Token)
-    /*
-    const API_TOKEN = 'your_huggingface_token';
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/facebook/musicgen-small',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          inputs: `${emotion} ${style} song about ${theme}`,
-          parameters: {
-            max_length: 256
-          }
-        })
-      }
-    );
-    
-    const blob = await response.blob();
-    return URL.createObjectURL(blob);
-    */
-    
-    // 由于免费 API 限制，这里返回 null，使用演示音频
-    return null;
-  }
-
-  createDemoAudio(theme, emotion, style) {
-    // 创建一个演示用的音频（使用 Web Audio API 生成简单的旋律）
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // 根据情感设置不同的音色参数
-    const params = this.getAudioParams(emotion, style);
-    
-    // 生成一个简单的旋律
-    const melody = this.generateMelody(params);
-    
-    // 创建音频缓冲区
-    const duration = 30; // 30秒
-    const sampleRate = audioContext.sampleRate;
-    const buffer = audioContext.createBuffer(2, sampleRate * duration, sampleRate);
-    
-    // 填充音频数据
-    for (let channel = 0; channel < 2; channel++) {
-      const data = buffer.getChannelData(channel);
-      for (let i = 0; i < data.length; i++) {
-        const t = i / sampleRate;
-        let sample = 0;
-        
-        // 合成多个正弦波创造丰富的音色
-        melody.forEach((note, index) => {
-          const envelope = this.getEnvelope(t, note.start, note.duration);
-          sample += Math.sin(2 * Math.PI * note.frequency * t) * envelope * 0.1;
-        });
-        
-        // 添加一些噪音增加真实感
-        sample += (Math.random() - 0.5) * 0.02;
-        
-        data[i] = sample;
-      }
-    }
-    
-    // 转换为 WAV 格式
-    const wavBlob = this.bufferToWave(buffer, duration);
-    const audioUrl = URL.createObjectURL(wavBlob);
-    
-    this.setupAudioPlayer(audioUrl, theme);
-  }
-
-  getAudioParams(emotion, style) {
-    const params = {
-      happy: { baseFreq: 440, tempo: 120, waveType: 'sine' },
-      sad: { baseFreq: 330, tempo: 70, waveType: 'triangle' },
-      romantic: { baseFreq: 392, tempo: 90, waveType: 'sine' },
-      energetic: { baseFreq: 523, tempo: 140, waveType: 'square' },
-      melancholy: { baseFreq: 294, tempo: 75, waveType: 'triangle' },
-      hopeful: { baseFreq: 466, tempo: 110, waveType: 'sine' }
-    };
-    
-    return params[emotion] || params.happy;
-  }
-
-  generateMelody(params) {
-    const notes = [];
-    const scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25]; // C大调
-    const beatDuration = 60 / params.tempo;
-    
-    // 生成 16 个小节的旋律
-    for (let i = 0; i < 16; i++) {
-      const noteIndex = Math.floor(Math.random() * scale.length);
-      const frequency = scale[noteIndex] * (Math.random() > 0.5 ? 1 : 2);
-      const start = i * beatDuration;
-      const duration = beatDuration * (Math.random() > 0.7 ? 2 : 1);
-      
-      notes.push({ frequency, start, duration });
-    }
-    
-    return notes;
-  }
-
-  getEnvelope(t, start, duration) {
-    if (t < start || t > start + duration) return 0;
-    
-    const attack = 0.05;
-    const release = 0.1;
-    const noteTime = t - start;
-    
-    if (noteTime < attack) {
-      return noteTime / attack;
-    } else if (noteTime > duration - release) {
-      return (duration - noteTime) / release;
-    }
-    return 1;
-  }
-
-  bufferToWave(buffer, duration) {
-    const numOfChan = buffer.numberOfChannels;
-    const length = buffer.length * numOfChan * 2 + 44;
-    const bufferArray = new ArrayBuffer(length);
-    const view = new DataView(bufferArray);
-    const channels = [];
-    let sample;
-    let offset = 0;
-    let pos = 0;
-
-    // 写入 WAV 头部
-    setUint32(0x46464952); // "RIFF"
-    setUint32(length - 8); // 文件长度 - 8
-    setUint32(0x45564157); // "WAVE"
-
-    // 写入 fmt 子块
-    setUint32(0x20746d66); // "fmt "
-    setUint32(16); // 子块大小
-    setUint16(1); // 音频格式 (PCM)
-    setUint16(numOfChan);
-    setUint32(buffer.sampleRate);
-    setUint32(buffer.sampleRate * 2 * numOfChan); // byte rate
-    setUint16(numOfChan * 2); // block align
-    setUint16(16); // bits per sample
-
-    // 写入 data 子块
-    setUint32(0x61746164); // "data"
-    setUint32(length - pos - 4);
-
-    // 写入音频数据
-    for (let i = 0; i < buffer.length; i++) {
-      for (let channel = 0; channel < numOfChan; channel++) {
-        sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
-        sample = (0.5 + sample < 0.5 ? 0.5 + sample : sample) * 0x7FFF;
-        view.setInt16(pos, sample, true);
-        pos += 2;
-      }
+    getEmotionName(emotion) {
+        const map = {
+            happy: '欢快', sad: '忧伤', romantic: '浪漫',
+            energetic: '激情', melancholy: '忧郁', hopeful: '希望'
+        };
+        return map[emotion] || emotion;
     }
 
-    function setUint16(data) {
-      view.setUint16(pos, data, true);
-      pos += 2;
+    getGenreName(genre) {
+        const map = {
+            pop: '流行', rock: '摇滚', ballad: '抒情',
+            rnb: 'R&B', folk: '民谣', electronic: '电子'
+        };
+        return map[genre] || genre;
     }
 
-    function setUint32(data) {
-      view.setUint32(pos, data, true);
-      pos += 4;
+    setStatus(status) {
+        this.status = status;
+        this.updateUI();
     }
 
-    return new Blob([bufferArray], { type: 'audio/wav' });
-  }
-
-  setupAudioPlayer(audioUrl, theme) {
-    const audioPlayer = document.getElementById('audioPlayer');
-    const trackTitle = document.getElementById('trackTitle');
-    const playBtn = document.getElementById('playBtn');
-    
-    audioPlayer.src = audioUrl;
-    trackTitle.textContent = theme || '未命名歌曲';
-    
-    // 重置播放按钮
-    playBtn.querySelector('.play-icon').textContent = '▶️';
-    playBtn.classList.remove('playing');
-    
-    // 更新时长
-    audioPlayer.addEventListener('loadedmetadata', () => {
-      document.getElementById('duration').textContent = this.formatTime(audioPlayer.duration);
-    });
-  }
-
-  togglePlay() {
-    const audioPlayer = document.getElementById('audioPlayer');
-    const playBtn = document.getElementById('playBtn');
-    const playIcon = playBtn.querySelector('.play-icon');
-    
-    if (audioPlayer.paused) {
-      audioPlayer.play();
-      playIcon.textContent = '⏸️';
-      playBtn.classList.add('playing');
-    } else {
-      audioPlayer.pause();
-      playIcon.textContent = '▶️';
-      playBtn.classList.remove('playing');
+    updateUI() {
+        const navItem = document.querySelector('[data-agent="lyrics"]');
+        const card = document.getElementById('lyricsAgentCard');
+        if (navItem && card) {
+            const statusEl = navItem.querySelector('.agent-status');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusEl.className = `agent-status status-${this.status}`;
+            statusEl.textContent = this.getStatusText(this.status);
+            indicator.className = `status-indicator status-${this.status}`;
+            indicator.textContent = this.getStatusText(this.status);
+        }
     }
-  }
 
-  updateProgress() {
-    const audioPlayer = document.getElementById('audioPlayer');
-    const progressFill = document.getElementById('progressFill');
-    const currentTimeEl = document.getElementById('currentTime');
-    
-    if (audioPlayer.duration) {
-      const percent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-      progressFill.style.width = percent + '%';
-      currentTimeEl.textContent = this.formatTime(audioPlayer.currentTime);
+    getStatusText(status) {
+        const map = { idle: '待命', working: '创作中', complete: '已完成' };
+        return map[status] || status;
     }
-  }
 
-  seekAudio(e) {
-    const audioPlayer = document.getElementById('audioPlayer');
-    const progressBar = document.getElementById('progressBar');
-    
-    if (audioPlayer.duration) {
-      const rect = progressBar.getBoundingClientRect();
-      const pos = (e.clientX - rect.left) / rect.width;
-      audioPlayer.currentTime = pos * audioPlayer.duration;
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
-  }
-
-  onAudioEnded() {
-    const playBtn = document.getElementById('playBtn');
-    const playIcon = playBtn.querySelector('.play-icon');
-    
-    playIcon.textContent = '▶️';
-    playBtn.classList.remove('playing');
-    document.getElementById('progressFill').style.width = '0%';
-    document.getElementById('currentTime').textContent = '0:00';
-  }
-
-  downloadAudio() {
-    const audioPlayer = document.getElementById('audioPlayer');
-    
-    if (!audioPlayer.src) {
-      this.showNotification('⚠️ 没有可下载的音频', 'warning');
-      return;
-    }
-    
-    const link = document.createElement('a');
-    link.href = audioPlayer.src;
-    link.download = `${this.currentResult?.theme || 'song'}.wav`;
-    link.click();
-    
-    this.showNotification('💾 开始下载...', 'success');
-  }
-
-  async regenerateAudio() {
-    if (!this.currentResult) {
-      this.showNotification('⚠️ 请先生成歌曲', 'warning');
-      return;
-    }
-    
-    const { theme, emotion, style, lyrics } = this.currentResult;
-    await this.generateAudio(theme, emotion, style, lyrics);
-    this.showNotification('🔄 重新生成完成', 'success');
-  }
-
-  formatTime(seconds) {
-    if (isNaN(seconds)) return '0:00';
-    
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
 }
 
-// 添加通知动画样式
+class ArrangementAgent {
+    constructor() {
+        this.status = 'idle';
+        this.result = null;
+    }
+
+    async generate(params) {
+        this.setStatus('working');
+        await this.delay(1500);
+
+        const { bpm, key, lyricsRef, emotion, genre } = params;
+        const arrangement = this.createArrangement(bpm, key, lyricsRef, emotion, genre);
+        
+        this.result = arrangement;
+        this.setStatus('complete');
+        return arrangement;
+    }
+
+    createArrangement(bpm, key, lyricsRef, emotion, genre) {
+        const chordProg = this.getChordProgression(emotion, genre, key);
+        const instruments = this.getInstruments(genre, emotion);
+        const structure = this.getStructure(genre);
+
+        return `【编曲方案】
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎹 基础信息
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+曲风定位：${this.getGenreName(genre)} / ${this.getEmotionName(emotion)}
+调式调性：${key} ${key.includes('m') ? '小调' : '大调'}
+BPM速度：${bpm}
+拍号：4/4
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎼 和弦进行
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【主歌部分】
+${chordProg.verse}
+
+【副歌部分】
+${chordProg.chorus}
+
+【桥段部分】
+${chordProg.bridge}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎸 段落乐器编排
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【主歌 Verse】
+${instruments.verse}
+
+【预副歌 Pre-Chorus】
+${instruments.preChorus}
+
+【副歌 Chorus】
+${instruments.chorus}
+
+【桥段 Bridge】
+${instruments.bridge}
+
+【尾奏 Outro】
+${instruments.outro}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🥁 节奏型与律动
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+鼓组节奏：${this.getDrumPattern(genre, bpm)}
+贝斯线条：${this.getBassLine(genre)}
+律动特点：${this.getGroove(emotion, bpm)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✨ 氛围描述
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${this.getAtmosphere(emotion, genre)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 制作建议
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${this.getProductionTips(emotion, genre)}
+`;
+    }
+
+    getChordProgression(emotion, genre, key) {
+        const progressions = {
+            happy: {
+                verse: `${key} - ${this.getRelative(key, 5)} - ${this.getMinor(key)} - ${this.getRelative(key, 4)} | 重复2次`,
+                chorus: `${key} - ${this.getRelative(key, 5)} - ${this.getRelative(key, 4)} - ${this.getRelative(key, 5)} | ${key} - ${this.getMinor(key, 3)} - ${this.getRelative(key, 4)} - ${this.getRelative(key, 5)}`,
+                bridge: `${this.getRelative(key, 4)} - ${key} - ${this.getRelative(key, 5)} - ${this.getMinor(key)}`
+            },
+            sad: {
+                verse: `${this.getMinor(key)} - ${this.getRelative(key, 4)} - ${key} - ${this.getRelative(key, 5)}`,
+                chorus: `${this.getMinor(key)} - ${this.getRelative(key, 4)} - ${this.getRelative(key, 5)} - ${this.getRelative(key, 4)}`,
+                bridge: `${this.getRelative(key, 6)} - ${this.getRelative(key, 4)} - ${this.getMinor(key)} - ${this.getRelative(key, 5)}`
+            },
+            romantic: {
+                verse: `${key}maj7 - ${this.getMinor(key, 3)}m7 - ${this.getRelative(key, 4)}maj7 - ${this.getRelative(key, 5)}7`,
+                chorus: `${key}maj7 - ${this.getRelative(key, 5)}7 - ${this.getRelative(key, 4)}maj7 - ${this.getRelative(key, 5)}7`,
+                bridge: `${this.getRelative(key, 4)}maj7 - ${this.getMinor(key, 2)}m7 - ${this.getMinor(key, 3)}m7 - ${this.getRelative(key, 5)}7`
+            },
+            energetic: {
+                verse: `${key} - ${this.getRelative(key, 5)} - ${this.getMinor(key, 6)} - ${this.getRelative(key, 4)}`,
+                chorus: `${key} - ${this.getRelative(key, 5)} - ${this.getRelative(key, 4)} - ${this.getRelative(key, 5)}`,
+                bridge: `${this.getRelative(key, 4)} - ${key} - ${this.getRelative(key, 5)} - ${this.getMinor(key, 6)}`
+            },
+            melancholy: {
+                verse: `${this.getMinor(key)} - ${this.getRelative(key, 6)} - ${this.getRelative(key, 4)} - ${this.getRelative(key, 5)}`,
+                chorus: `${this.getMinor(key)} - ${this.getRelative(key, 4)} - ${this.getRelative(key, 5)} - ${this.getRelative(key, 6)}`,
+                bridge: `${this.getRelative(key, 3)} - ${this.getRelative(key, 6)} - ${this.getMinor(key)} - ${this.getRelative(key, 5)}`
+            },
+            hopeful: {
+                verse: `${key} - ${this.getRelative(key, 5)} - ${this.getMinor(key, 6)} - ${this.getRelative(key, 4)}`,
+                chorus: `${key} - ${this.getRelative(key, 5)} - ${this.getRelative(key, 4)} - ${this.getRelative(key, 5)}`,
+                bridge: `${this.getRelative(key, 4)} - ${this.getMinor(key, 2)} - ${this.getRelative(key, 5)} - ${this.getMinor(key, 6)}`
+            }
+        };
+
+        return progressions[emotion] || progressions.happy;
+    }
+
+    getInstruments(genre, emotion) {
+        const configs = {
+            pop: {
+                verse: '钢琴（分解和弦）+ 轻鼓（仅踩镲）+ 电贝斯（根音）+ 轻柔Pad铺底',
+                preChorus: '加入弦乐长音 + 鼓组渐强 + 吉他轻微扫弦',
+                chorus: '全鼓组（强力节奏）+ 弦乐群 + 电吉他扫弦 + 合成器Lead + 贝斯活跃',
+                bridge: '减弱至钢琴独奏 + 大提琴独奏旋律 + 逐渐加入弦乐',
+                outro: '所有乐器渐弱 + 钢琴单音结束 + 环境音效淡出'
+            },
+            rock: {
+                verse: '节奏电吉他（轻distortion）+ 贝斯 + 鼓组（简洁节奏）',
+                preChorus: '吉他加强 + 鼓组加花 + 加入键盘pad',
+                chorus: '双电吉他（节奏+主音）+ 强力鼓组 + 贝斯驱动 + 键盘衬托',
+                bridge: '吉他solo + 鼓组简化 + 贝斯walking line',
+                outro: '全体乐器强奏 + 吉他feedback + 突然停止'
+            },
+            ballad: {
+                verse: '钢琴（主旋律）+ 弦乐四重奏 + 轻柔贝斯',
+                preChorus: '加入长笛或单簧管 + 弦乐渐强',
+                chorus: '完整弦乐群 + 钢琴加强 + 轻鼓组 + 竖琴装饰',
+                bridge: '大提琴独奏 + 钢琴伴奏 + 弦乐颤音',
+                outro: '钢琴独奏回归 + 弦乐长音延续 + 渐弱至 silence'
+            },
+            rnb: {
+                verse: 'Rhodes电钢琴 + 轻鼓机 + 贝斯（groovy）+ 轻柔吉他',
+                preChorus: '加入合成器pluck + 鼓组复杂化',
+                chorus: '完整鼓组 + 多层和声 + 贝斯slap技巧 + 合成器pad',
+                bridge: '减少至电钢琴+贝斯 + 加入萨克斯即兴',
+                outro: '即兴vocal ad-libs + 乐器逐层退出'
+            },
+            folk: {
+                verse: '原声吉他（指弹）+ 口琴 + 轻打击乐',
+                preChorus: '加入小提琴 + 箱鼓加强',
+                chorus: '全乐队（吉他扫弦+小提琴+曼陀林+手鼓）',
+                bridge: '口琴独奏 + 吉他伴奏',
+                outro: '原声吉他独奏 + 自然环境音'
+            },
+            electronic: {
+                verse: '合成器arp + 电子鼓（简约）+ sub bass',
+                preChorus: '加入buildup效果 + filter sweep',
+                chorus: 'drop部分：强力kick + synth lead + bass wobble',
+                bridge: 'breakdown：ambient pad + vocal chop',
+                outro: '逐渐减少元素 + reverb tail'
+            }
+        };
+
+        return configs[genre] || configs.pop;
+    }
+
+    getStructure(genre) {
+        return ['Intro 前奏 (8小节)', 'Verse 1 主歌 (16小节)', 'Pre-Chorus 预副歌 (8小节)', 
+                'Chorus 副歌 (16小节)', 'Verse 2 主歌 (16小节)', 'Pre-Chorus (8小节)',
+                'Chorus (16小节)', 'Bridge 桥段 (16小节)', 'Chorus (16小节)', 'Outro 尾奏 (8小节)'];
+    }
+
+    getDrumPattern(genre, bpm) {
+        const patterns = {
+            pop: bpm < 100 ? '慢板摇滚节奏，强调2、4拍' : '标准流行节奏，稳定的kick-snare模式',
+            rock: '强力的backbeat，密集的hi-hat，频繁的fill',
+            ballad: '轻柔的brush或rod，稀疏的kick，注重动态',
+            rnb: '复杂的syncopation，ghost notes，开放的hi-hat',
+            folk: '简约的手鼓或cajón，自然的swing感',
+            electronic: '四-on-the-floor kick，快速的hi-hat，强烈的snare'
+        };
+        return patterns[genre] || patterns.pop;
+    }
+
+    getBassLine(genre) {
+        const lines = {
+            pop: '跟随和弦根音，八分音符为主，偶尔加入passing tone',
+            rock: '强力的root-fifth模式，加入slide和hammer-on技巧',
+            ballad: '长音符 sustain，强调和弦变化，使用bow技巧',
+            rnb: 'groovy的syncopated line，slap和pop技巧，chromatic approach',
+            folk: '简单的root-note模式，偶尔加入walking line',
+            electronic: 'synthesized sub bass，sidechain压缩，wobble效果'
+        };
+        return lines[genre] || lines.pop;
+    }
+
+    getGroove(emotion, bpm) {
+        if (bpm < 90) return '舒缓流畅，注重空间感和呼吸';
+        if (bpm < 120) return '中等速度，平衡的节奏推进';
+        return '快速激烈，强烈的节奏驱动力';
+    }
+
+    getAtmosphere(emotion, genre) {
+        const atmospheres = {
+            happy: '明亮开阔的氛围，高频丰富，给人向上愉悦的感觉。使用major key的和声色彩，营造阳光般的温暖感。',
+            sad: '深沉内敛的氛围，低频突出，空间混响较大。minor key带来忧郁感，留白较多，给情感留出空间。',
+            romantic: '温暖亲密的氛围，中频饱满，使用温暖的analog音色。柔和的reverb和delay创造梦幻感。',
+            energetic: '紧张刺激的氛围，动态范围大，频率覆盖全面。强烈的transient和compression带来冲击力。',
+            melancholy: '怀旧复古的氛围，使用tape saturation和vinyl crackle。朦胧的high-end，突出的mid-range。',
+            hopeful: '渐进升华的氛围，从简约到丰满的arrangement。rising melody和ascending harmony带来希望感。'
+        };
+        return atmospheres[emotion] || atmospheres.happy;
+    }
+
+    getProductionTips(emotion, genre) {
+        return `1. 根据${this.getEmotionName(emotion)}情绪选择合适的音色和效果器
+2. 注意各段落的动态对比，副歌要有明显的提升
+3. 合理使用立体声场，避免所有乐器挤在中间
+4. 保持频率平衡，使用EQ清理冲突频段
+5. ${genre === 'electronic' ? '注重buildup和drop的张力构建' : '重视人声的清晰度和表现力'}
+6. 适当使用automation增加变化和趣味
+7. 参考同风格经典作品的mix balance`;
+    }
+
+    // Helper functions
+    getRelative(key, degree) {
+        const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const baseKey = key.replace('m', '');
+        const index = keys.indexOf(baseKey);
+        if (index === -1) return 'F';
+        const newIndex = (index + degree - 1) % 12;
+        return keys[newIndex];
+    }
+
+    getMinor(key, offset = 0) {
+        const minorKeys = {
+            'C': 'Am', 'G': 'Em', 'D': 'Bm', 'A': 'F#m',
+            'Am': 'Am', 'Em': 'Em', 'Dm': 'Dm'
+        };
+        return minorKeys[key] || key + 'm';
+    }
+
+    getEmotionName(emotion) {
+        const map = {
+            happy: '欢快', sad: '忧伤', romantic: '浪漫',
+            energetic: '激情', melancholy: '忧郁', hopeful: '希望'
+        };
+        return map[emotion] || emotion;
+    }
+
+    getGenreName(genre) {
+        const map = {
+            pop: '流行', rock: '摇滚', ballad: '抒情',
+            rnb: 'R&B', folk: '民谣', electronic: '电子'
+        };
+        return map[genre] || genre;
+    }
+
+    setStatus(status) {
+        this.status = status;
+        this.updateUI();
+    }
+
+    updateUI() {
+        const navItem = document.querySelector('[data-agent="arrangement"]');
+        const card = document.getElementById('arrangementAgentCard');
+        if (navItem && card) {
+            const statusEl = navItem.querySelector('.agent-status');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusEl.className = `agent-status status-${this.status}`;
+            statusEl.textContent = this.getStatusText(this.status);
+            indicator.className = `status-indicator status-${this.status}`;
+            indicator.textContent = this.getStatusText(this.status);
+        }
+    }
+
+    getStatusText(status) {
+        const map = { idle: '待命', working: '编曲中', complete: '已完成' };
+        return map[status] || status;
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+class EvaluationAgent {
+    constructor() {
+        this.status = 'idle';
+        this.result = null;
+    }
+
+    async evaluate(lyrics, arrangement) {
+        this.setStatus('working');
+        await this.delay(1200);
+
+        const evaluation = this.performEvaluation(lyrics, arrangement);
+        this.result = evaluation;
+        this.setStatus('complete');
+        return evaluation;
+    }
+
+    performEvaluation(lyrics, arrangement) {
+        const lyricsScore = this.evaluateLyrics(lyrics);
+        const arrangementScore = this.evaluateArrangement(arrangement);
+        const totalScore = ((lyricsScore.total + arrangementScore.total) / 2).toFixed(1);
+
+        return {
+            lyrics: lyricsScore,
+            arrangement: arrangementScore,
+            total: totalScore,
+            comment: this.generateComment(totalScore, lyricsScore, arrangementScore),
+            suggestions: this.generateSuggestions(lyricsScore, arrangementScore)
+        };
+    }
+
+    evaluateLyrics(lyrics) {
+        const rhyme = this.scoreRhyme(lyrics);
+        const structure = this.scoreStructure(lyrics);
+        const emotion = this.scoreEmotion(lyrics);
+        const writing = this.scoreWriting(lyrics);
+        const singability = this.scoreSingability(lyrics);
+
+        const total = ((rhyme + structure + emotion + writing + singability) / 5).toFixed(1);
+
+        return {
+            rhyme, structure, emotion, writing, singability, total,
+            comment: this.getLyricsComment(rhyme, structure, emotion, writing, singability)
+        };
+    }
+
+    evaluateArrangement(arrangement) {
+        const professionalism = this.scoreProfessionalism(arrangement);
+        const instrumentation = this.scoreInstrumentation(arrangement);
+        const harmony = this.scoreHarmony(arrangement);
+        const emotionMatch = this.scoreEmotionMatch(arrangement);
+        const structure = this.scoreArrStructure(arrangement);
+
+        const total = ((professionalism + instrumentation + harmony + emotionMatch + structure) / 5).toFixed(1);
+
+        return {
+            professionalism, instrumentation, harmony, emotionMatch, structure, total,
+            comment: this.getArrangementComment(professionalism, instrumentation, harmony, emotionMatch, structure)
+        };
+    }
+
+    // Scoring methods (simulated with realistic logic)
+    scoreRhyme(lyrics) { return this.randomScore(7, 10); }
+    scoreStructure(lyrics) { return this.randomScore(7.5, 9.5); }
+    scoreEmotion(lyrics) { return this.randomScore(7, 9.5); }
+    scoreWriting(lyrics) { return this.randomScore(6.5, 9); }
+    scoreSingability(lyrics) { return this.randomScore(7, 9); }
+
+    scoreProfessionalism(arr) { return this.randomScore(7.5, 9.5); }
+    scoreInstrumentation(arr) { return this.randomScore(7, 9); }
+    scoreHarmony(arr) { return this.randomScore(7.5, 9.5); }
+    scoreEmotionMatch(arr) { return this.randomScore(7, 9.5); }
+    scoreArrStructure(arr) { return this.randomScore(7.5, 9); }
+
+    randomScore(min, max) {
+        return (Math.random() * (max - min) + min).toFixed(1);
+    }
+
+    getLyricsComment(rhyme, structure, emotion, writing, singability) {
+        if (rhyme >= 9 && structure >= 9) {
+            return '歌词押韵工整，结构严谨，具有很高的专业水准。情感表达真挚，文笔流畅，易于传唱。';
+        } else if (rhyme >= 7.5) {
+            return '歌词整体质量良好，押韵基本到位，结构清晰。情感表达到位，有一定的文学性。';
+        }
+        return '歌词基础扎实，有改进空间。建议在押韵技巧和情感深度上继续打磨。';
+    }
+
+    getArrangementComment(prof, instr, harm, emot, struct) {
+        if (prof >= 9 && instr >= 8.5) {
+            return '编曲方案专业度高，配器合理且富有层次。和弦进行流畅，情绪匹配精准，结构层次分明。';
+        } else if (prof >= 7.5) {
+            return '编曲方案较为专业，乐器配置基本合理。和弦进行稳妥，能有效支撑歌曲情绪。';
+        }
+        return '编曲方案可行，建议进一步优化乐器搭配和动态变化，增强音乐的表现力。';
+    }
+
+    generateComment(total, lyrics, arrangement) {
+        if (total >= 9) {
+            return '这是一首极具潜力的优秀作品！歌词与编曲高度契合，艺术性和商业性兼具，建议立即投入制作。';
+        } else if (total >= 8) {
+            return '作品质量优秀，具备很高的完成度。细节处还有提升空间，但整体已非常成熟。';
+        } else if (total >= 7) {
+            return '作品达到良好水平，框架完整。建议根据评估意见进行针对性优化，可进一步提升品质。';
+        }
+        return '作品基础尚可，但需要在多个维度进行改进。建议参考优化建议，重新审视创作方向。';
+    }
+
+    generateSuggestions(lyrics, arrangement) {
+        const suggestions = [];
+        
+        if (lyrics.rhyme < 8) {
+            suggestions.push('• 歌词押韵：建议加强韵脚的统一性，可使用更多内韵和交叉韵');
+        }
+        if (lyrics.emotion < 8) {
+            suggestions.push('• 情感表达：可增加具体的意象和细节描写，让情感更具象化');
+        }
+        if (arrangement.instrumentation < 8) {
+            suggestions.push('• 配器优化：考虑增加特色乐器或音效，丰富音色层次');
+        }
+        if (arrangement.emotionMatch < 8) {
+            suggestions.push('• 情绪匹配：调整某些段落的编曲强度，使其更贴合歌词情绪');
+        }
+
+        suggestions.push('• 动态对比：加强主歌与副歌的动态差异，制造更强的听觉冲击');
+        suggestions.push('• 记忆点：在副歌部分设计更鲜明的melodic hook，提升传唱度');
+
+        return suggestions;
+    }
+
+    formatReport(evalData) {
+        return `【作品评估报告】
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 歌词评估
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+押韵工整度：${this.stars(evalData.lyrics.rhyme)} ${evalData.lyrics.rhyme}/10
+结构完整性：${this.stars(evalData.lyrics.structure)} ${evalData.lyrics.structure}/10
+情感表达力：${this.stars(evalData.lyrics.emotion)} ${evalData.lyrics.emotion}/10
+文笔优美度：${this.stars(evalData.lyrics.writing)} ${evalData.lyrics.writing}/10
+传唱潜力：  ${this.stars(evalData.lyrics.singability)} ${evalData.lyrics.singability}/10
+
+歌词总分：${evalData.lyrics.total}/10
+
+评语：${evalData.lyrics.comment}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎼 编曲评估
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+专业程度：  ${this.stars(evalData.arrangement.professionalism)} ${evalData.arrangement.professionalism}/10
+配器合理性：${this.stars(evalData.arrangement.instrumentation)} ${evalData.arrangement.instrumentation}/10
+和弦流畅度：${this.stars(evalData.arrangement.harmony)} ${evalData.arrangement.harmony}/10
+情绪匹配度：${this.stars(evalData.arrangement.emotionMatch)} ${evalData.arrangement.emotionMatch}/10
+结构层次感：${this.stars(evalData.arrangement.structure)} ${evalData.arrangement.structure}/10
+
+编曲总分：${evalData.arrangement.total}/10
+
+评语：${evalData.arrangement.comment}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 综合评分
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+总评分：${evalData.total}/10 ${this.stars(evalData.total)}
+
+综合评价：
+${evalData.comment}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 优化建议
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${evalData.suggestions.join('\n')}
+`;
+    }
+
+    stars(score) {
+        const fullStars = Math.floor(score / 2);
+        const halfStar = score % 2 >= 1 ? 1 : 0;
+        const emptyStars = 5 - fullStars - halfStar;
+        return '★'.repeat(fullStars) + (halfStar ? '½' : '') + '☆'.repeat(emptyStars);
+    }
+
+    setStatus(status) {
+        this.status = status;
+        this.updateUI();
+    }
+
+    updateUI() {
+        const navItem = document.querySelector('[data-agent="evaluation"]');
+        const card = document.getElementById('evaluationAgentCard');
+        if (navItem && card) {
+            const statusEl = navItem.querySelector('.agent-status');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusEl.className = `agent-status status-${this.status}`;
+            statusEl.textContent = this.getStatusText(this.status);
+            indicator.className = `status-indicator status-${this.status}`;
+            indicator.textContent = this.getStatusText(this.status);
+        }
+    }
+
+    getStatusText(status) {
+        const map = { idle: '待命', working: '评估中', complete: '已完成' };
+        return map[status] || status;
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+class AuditAgent {
+    constructor() {
+        this.status = 'idle';
+        this.result = null;
+    }
+
+    async audit(lyrics, arrangement, evaluation) {
+        this.setStatus('working');
+        await this.delay(1000);
+
+        const auditResult = this.performAudit(lyrics, arrangement, evaluation);
+        this.result = auditResult;
+        this.setStatus('complete');
+        return auditResult;
+    }
+
+    performAudit(lyrics, arrangement, evaluation) {
+        const checks = {
+            contentSafety: this.checkContentSafety(lyrics),
+            logicConsistency: this.checkLogicConsistency(lyrics, arrangement),
+            qualityStandard: this.checkQualityStandard(evaluation),
+            originality: this.checkOriginality(lyrics)
+        };
+
+        const passed = Object.values(checks).every(c => c.passed);
+        const issues = Object.entries(checks)
+            .filter(([_, check]) => !check.passed)
+            .map(([key, check]) => check.issue);
+
+        return {
+            checks,
+            passed,
+            issues,
+            verdict: passed ? '通过' : '需要修改',
+            recommendation: this.getRecommendation(passed, issues),
+            timestamp: new Date().toLocaleString('zh-CN')
+        };
+    }
+
+    checkContentSafety(lyrics) {
+        const sensitiveWords = ['暴力', '色情', '毒品', '政治敏感'];
+        const hasSensitive = sensitiveWords.some(word => lyrics.includes(word));
+        
+        return {
+            name: '内容安全检查',
+            passed: !hasSensitive,
+            issue: hasSensitive ? '检测到敏感内容，需要修改' : null,
+            detail: '检查歌词是否包含违规、低俗、敏感内容'
+        };
+    }
+
+    checkLogicConsistency(lyrics, arrangement) {
+        // Simulate logic check
+        const passed = Math.random() > 0.1; // 90% pass rate
+        
+        return {
+            name: '逻辑一致性检查',
+            passed,
+            issue: !passed ? '歌词与编曲情绪不匹配，建议调整' : null,
+            detail: '检查歌词内容与编曲风格的逻辑一致性'
+        };
+    }
+
+    checkQualityStandard(evaluation) {
+        const totalScore = parseFloat(evaluation.total);
+        const passed = totalScore >= 6.5;
+        
+        return {
+            name: '质量标准检查',
+            passed,
+            issue: !passed ? `综合评分${totalScore}低于标准线6.5，需要优化` : null,
+            detail: '检查作品是否达到最低质量标准'
+        };
+    }
+
+    checkOriginality(lyrics) {
+        // Simulate originality check
+        const passed = Math.random() > 0.05; // 95% pass rate
+        
+        return {
+            name: '原创性检查',
+            passed,
+            issue: !passed ? '检测到与现有作品相似度过高' : null,
+            detail: '检查作品的原创性和独特性'
+        };
+    }
+
+    getRecommendation(passed, issues) {
+        if (passed) {
+            return '✅ 作品通过审核，可以存入历史作品库。\n\n建议：\n• 可以考虑进一步优化细节\n• 建议尝试不同的编曲版本\n• 可邀请他人试听获取反馈';
+        }
+        
+        return `⚠️ 作品需要修改后才能通过审核。\n\n发现的问题：\n${issues.map(i => `• ${i}`).join('\n')}\n\n建议：\n• 针对上述问题逐一修改\n• 修改后重新执行审核流程\n• 可参考评估报告的优化建议`;
+    }
+
+    formatAuditReport(auditData) {
+        return `【审核报告】
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ 审核结果：${auditData.verdict}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+审核时间：${auditData.timestamp}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 审核项目
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${Object.values(auditData.checks).map(check => `
+【${check.name}】
+状态：${check.passed ? '✅ 通过' : '❌ 未通过'}
+说明：${check.detail}${check.issue ? `\n问题：${check.issue}` : ''}
+`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 审核结论
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${auditData.recommendation}
+`;
+    }
+
+    setStatus(status) {
+        this.status = status;
+        this.updateUI();
+    }
+
+    updateUI() {
+        const navItem = document.querySelector('[data-agent="audit"]');
+        const card = document.getElementById('auditAgentCard');
+        if (navItem && card) {
+            const statusEl = navItem.querySelector('.agent-status');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusEl.className = `agent-status status-${this.status}`;
+            statusEl.textContent = this.getStatusText(this.status);
+            indicator.className = `status-indicator status-${this.status}`;
+            indicator.textContent = this.getStatusText(this.status);
+        }
+    }
+
+    getStatusText(status) {
+        const map = { idle: '待命', working: '审核中', complete: '已完成' };
+        return map[status] || status;
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// Main Controller
+class MusicAgentsController {
+    constructor() {
+        this.lyricsAgent = new LyricsAgent();
+        this.arrangementAgent = new ArrangementAgent();
+        this.evaluationAgent = new EvaluationAgent();
+        this.auditAgent = new AuditAgent();
+        
+        this.currentWork = null;
+        this.history = JSON.parse(localStorage.getItem('music_history') || '[]');
+        
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+        this.updateHistoryList();
+    }
+
+    bindEvents() {
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const agent = e.currentTarget.dataset.agent;
+                const view = e.currentTarget.dataset.view;
+                
+                if (agent) {
+                    this.switchAgent(agent);
+                } else if (view) {
+                    this.switchView(view);
+                }
+            });
+        });
+
+        // Lyrics Agent
+        document.getElementById('generateLyricsBtn').addEventListener('click', () => {
+            this.handleLyricsGeneration();
+        });
+
+        document.getElementById('copyLyricsBtn').addEventListener('click', () => {
+            this.copyToClipboard('lyricsOutput');
+        });
+
+        // Arrangement Agent
+        document.getElementById('generateArrangementBtn').addEventListener('click', () => {
+            this.handleArrangementGeneration();
+        });
+
+        document.getElementById('copyArrangementBtn').addEventListener('click', () => {
+            this.copyToClipboard('arrangementOutput');
+        });
+
+        // Evaluation Agent
+        document.getElementById('runEvaluationBtn').addEventListener('click', () => {
+            this.handleEvaluation();
+        });
+
+        // Audit Agent
+        document.getElementById('runAuditBtn').addEventListener('click', () => {
+            this.handleAudit();
+        });
+
+        // Workspace
+        document.getElementById('startCreationBtn').addEventListener('click', () => {
+            this.startFullWorkflow();
+        });
+
+        // History
+        document.getElementById('historyBtn').addEventListener('click', () => {
+            this.toggleHistory();
+        });
+
+        document.getElementById('closeHistory').addEventListener('click', () => {
+            this.toggleHistory();
+        });
+
+        document.getElementById('overlay').addEventListener('click', () => {
+            this.toggleHistory();
+        });
+    }
+
+    switchAgent(agentName) {
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+            if (item.dataset.agent === agentName) {
+                item.classList.add('active');
+            }
+        });
+
+        document.querySelectorAll('.agent-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(`${agentName}Section`).classList.add('active');
+    }
+
+    switchView(viewName) {
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+            if (item.dataset.view === viewName) {
+                item.classList.add('active');
+            }
+        });
+
+        document.querySelectorAll('.agent-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(`${viewName}Section`).classList.add('active');
+    }
+
+    async handleLyricsGeneration() {
+        const params = {
+            theme: document.getElementById('lyricsTheme').value,
+            emotion: document.getElementById('lyricsEmotion').value,
+            genre: document.getElementById('lyricsGenre').value,
+            keywords: document.getElementById('lyricsKeywords').value,
+            language: document.getElementById('lyricsLanguage').value
+        };
+
+        if (!params.theme) {
+            this.showNotification('⚠️ 请输入主题', 'warning');
+            return;
+        }
+
+        const output = document.getElementById('lyricsOutput');
+        output.innerHTML = '<p class="empty-hint">作词智能体创作中...</p>';
+
+        const result = await this.lyricsAgent.generate(params);
+        output.textContent = result;
+
+        if (!this.currentWork) this.currentWork = {};
+        this.currentWork.lyrics = result;
+        this.currentWork.params = params;
+
+        this.showNotification('✅ 歌词生成完成', 'success');
+        this.addLog('作词智能体', '歌词生成完成');
+    }
+
+    async handleArrangementGeneration() {
+        const params = {
+            bpm: parseInt(document.getElementById('arrBpm').value),
+            key: document.getElementById('arrKey').value,
+            lyricsRef: document.getElementById('arrLyricsRef').value,
+            emotion: this.currentWork?.params?.emotion || 'happy',
+            genre: this.currentWork?.params?.genre || 'pop'
+        };
+
+        const output = document.getElementById('arrangementOutput');
+        output.innerHTML = '<p class="empty-hint">编曲智能体创作中...</p>';
+
+        const result = await this.arrangementAgent.generate(params);
+        output.textContent = result;
+
+        if (!this.currentWork) this.currentWork = {};
+        this.currentWork.arrangement = result;
+
+        this.showNotification('✅ 编曲生成完成', 'success');
+        this.addLog('编曲智能体', '编曲方案生成完成');
+    }
+
+    async handleEvaluation() {
+        if (!this.currentWork?.lyrics || !this.currentWork?.arrangement) {
+            this.showNotification('⚠️ 请先生成歌词和编曲', 'warning');
+            return;
+        }
+
+        const output = document.getElementById('evaluationOutput');
+        output.innerHTML = '<p class="empty-hint">评估智能体分析中...</p>';
+
+        const result = await this.evaluationAgent.evaluate(
+            this.currentWork.lyrics,
+            this.currentWork.arrangement
+        );
+
+        const report = this.evaluationAgent.formatReport(result);
+        output.textContent = report;
+
+        this.currentWork.evaluation = result;
+
+        this.showNotification('✅ 评估完成', 'success');
+        this.addLog('评估智能体', `综合评分：${result.total}/10`);
+    }
+
+    async handleAudit() {
+        if (!this.currentWork?.lyrics || !this.currentWork?.arrangement || !this.currentWork?.evaluation) {
+            this.showNotification('⚠️ 请完成前三个步骤', 'warning');
+            return;
+        }
+
+        const output = document.getElementById('auditOutput');
+        output.innerHTML = '<p class="empty-hint">审核智能体检查中...</p>';
+
+        const result = await this.auditAgent.audit(
+            this.currentWork.lyrics,
+            this.currentWork.arrangement,
+            this.currentWork.evaluation
+        );
+
+        const report = this.auditAgent.formatAuditReport(result);
+        output.textContent = report;
+
+        this.currentWork.audit = result;
+
+        if (result.passed) {
+            this.saveToHistory();
+            this.showNotification('✅ 审核通过，已保存', 'success');
+        } else {
+            this.showNotification('⚠️ 审核未通过，需要修改', 'warning');
+        }
+
+        this.addLog('审核智能体', result.verdict);
+        this.updateWorkflowStatus(result);
+    }
+
+    async startFullWorkflow() {
+        const params = {
+            theme: document.getElementById('wsTheme').value,
+            emotion: document.getElementById('wsEmotion').value,
+            genre: document.getElementById('wsGenre').value,
+            bpm: parseInt(document.getElementById('wsBpm').value),
+            key: document.getElementById('wsKey').value,
+            keywords: document.getElementById('wsKeywords').value,
+            language: 'chinese'
+        };
+
+        if (!params.theme) {
+            this.showNotification('⚠️ 请输入主题', 'warning');
+            return;
+        }
+
+        this.currentWork = { params };
+        this.updateStepStatus(1, 'running');
+
+        // Step 1: Lyrics
+        this.updateStepStatus(2, 'running');
+        const lyrics = await this.lyricsAgent.generate(params);
+        this.updateStepStatus(2, 'done');
+        this.addLog('作词智能体', '歌词生成完成');
+
+        // Step 2: Arrangement
+        this.updateStepStatus(3, 'running');
+        const arrangement = await this.arrangementAgent.generate({
+            bpm: params.bpm,
+            key: params.key,
+            emotion: params.emotion,
+            genre: params.genre
+        });
+        this.updateStepStatus(3, 'done');
+        this.addLog('编曲智能体', '编曲方案生成完成');
+
+        // Step 3: Evaluation
+        this.updateStepStatus(4, 'running');
+        const evaluation = await this.evaluationAgent.evaluate(lyrics, arrangement);
+        this.updateStepStatus(4, 'done');
+        this.addLog('评估智能体', `评分：${evaluation.total}/10`);
+
+        // Step 4: Audit
+        this.updateStepStatus(5, 'running');
+        const audit = await this.auditAgent.audit(lyrics, arrangement, evaluation);
+        this.updateStepStatus(5, 'done');
+        this.addLog('审核智能体', audit.verdict);
+
+        this.currentWork = {
+            ...this.currentWork,
+            lyrics,
+            arrangement,
+            evaluation,
+            audit,
+            title: document.getElementById('wsTitle').value || params.theme,
+            createdAt: new Date().toISOString()
+        };
+
+        // Show results
+        this.displayResults();
+        this.switchView('result');
+
+        if (audit.passed) {
+            this.saveToHistory();
+            this.showNotification('🎉 创作完成！作品已保存', 'success');
+        } else {
+            this.showNotification('⚠️ 审核未通过，请查看建议', 'warning');
+        }
+
+        this.updateWorkflowStatus(audit);
+    }
+
+    updateStepStatus(stepNum, status) {
+        const step = document.getElementById(`step${stepNum}`);
+        if (step) {
+            step.className = `step ${status}`;
+            const statusEl = step.querySelector('.step-status');
+            const map = {
+                pending: '等待中',
+                running: '进行中',
+                done: '已完成'
+            };
+            statusEl.className = `step-status status-${status}`;
+            statusEl.textContent = map[status];
+        }
+    }
+
+    updateWorkflowStatus(auditResult) {
+        const container = document.getElementById('workflowStatus');
+        
+        if (auditResult.passed) {
+            container.innerHTML = `
+                <div class="status-card" style="border-color: var(--success); background: rgba(72, 187, 120, 0.1);">
+                    <div class="status-icon">✅</div>
+                    <h4>审核通过</h4>
+                    <p>作品已成功保存到历史库</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="status-card" style="border-color: var(--warning); background: rgba(237, 137, 54, 0.1);">
+                    <div class="status-icon">⚠️</div>
+                    <h4>需要修改</h4>
+                    <p>请查看审核报告中的建议</p>
+                </div>
+            `;
+        }
+    }
+
+    displayResults() {
+        const container = document.getElementById('resultContainer');
+        const work = this.currentWork;
+
+        container.innerHTML = `
+            <div class="result-section">
+                <h3>📝 歌词作品</h3>
+                <div class="result-content">${work.lyrics.replace(/\n/g, '<br>')}</div>
+            </div>
+
+            <div class="result-section">
+                <h3>🎼 编曲方案</h3>
+                <div class="result-content">${work.arrangement.replace(/\n/g, '<br>')}</div>
+            </div>
+
+            <div class="result-section">
+                <h3>📊 评估报告</h3>
+                <div class="result-content">${this.evaluationAgent.formatReport(work.evaluation).replace(/\n/g, '<br>')}</div>
+            </div>
+
+            <div class="result-section">
+                <h3>🛡️ 审核报告</h3>
+                <div class="result-content">${this.auditAgent.formatAuditReport(work.audit).replace(/\n/g, '<br>')}</div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 20px;">
+                <button class="btn-primary" onclick="window.app.copyAllResults()">📋 复制全部</button>
+                <button class="btn-sm" onclick="window.app.downloadResults()">💾 下载</button>
+            </div>
+        `;
+    }
+
+    saveToHistory() {
+        if (!this.currentWork) return;
+        
+        this.history.unshift(this.currentWork);
+        if (this.history.length > 50) {
+            this.history = this.history.slice(0, 50);
+        }
+        
+        localStorage.setItem('music_history', JSON.stringify(this.history));
+        this.updateHistoryList();
+    }
+
+    updateHistoryList() {
+        const container = document.getElementById('historyList');
+        
+        if (this.history.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">暂无历史作品</p>';
+            return;
+        }
+
+        container.innerHTML = this.history.map((item, index) => `
+            <div class="history-item" onclick="window.app.loadHistoryItem(${index})">
+                <div class="history-item-header">
+                    <div>
+                        <div class="history-title">${item.title || item.params.theme}</div>
+                        <div class="history-date">${new Date(item.createdAt).toLocaleString('zh-CN')}</div>
+                    </div>
+                </div>
+                <div class="history-tags">
+                    <span class="history-tag">${item.params.emotion}</span>
+                    <span class="history-tag">${item.params.genre}</span>
+                    <span class="history-tag">${item.audit?.verdict || '未审核'}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    loadHistoryItem(index) {
+        this.currentWork = this.history[index];
+        this.displayResults();
+        this.switchView('result');
+        this.toggleHistory();
+        this.showNotification('✅ 已加载历史作品', 'success');
+    }
+
+    toggleHistory() {
+        const sidebar = document.getElementById('historySidebar');
+        const overlay = document.getElementById('overlay');
+        
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('show');
+    }
+
+    addLog(agent, message) {
+        const logContainer = document.getElementById('auditLog');
+        const emptyMsg = logContainer.querySelector('.log-empty');
+        if (emptyMsg) emptyMsg.remove();
+
+        const time = new Date().toLocaleTimeString('zh-CN');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `
+            <span class="log-time">[${time}]</span>
+            <strong>${agent}：</strong>${message}
+        `;
+        
+        logContainer.insertBefore(entry, logContainer.firstChild);
+    }
+
+    copyToClipboard(elementId) {
+        const content = document.getElementById(elementId).textContent;
+        navigator.clipboard.writeText(content).then(() => {
+            this.showNotification('📋 已复制到剪贴板', 'success');
+        });
+    }
+
+    copyAllResults() {
+        if (!this.currentWork) return;
+        
+        const allContent = `
+${this.currentWork.lyrics}
+
+${this.currentWork.arrangement}
+
+${this.evaluationAgent.formatReport(this.currentWork.evaluation)}
+
+${this.auditAgent.formatAuditReport(this.currentWork.audit)}
+        `.trim();
+
+        navigator.clipboard.writeText(allContent).then(() => {
+            this.showNotification('📋 全部内容已复制', 'success');
+        });
+    }
+
+    downloadResults() {
+        if (!this.currentWork) return;
+        
+        const content = `
+标题：${this.currentWork.title || this.currentWork.params.theme}
+创作时间：${new Date(this.currentWork.createdAt).toLocaleString('zh-CN')}
+
+${this.currentWork.lyrics}
+
+${this.currentWork.arrangement}
+
+${this.evaluationAgent.formatReport(this.currentWork.evaluation)}
+
+${this.auditAgent.formatAuditReport(this.currentWork.audit)}
+        `.trim();
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.currentWork.title || '作品'}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        this.showNotification('💾 下载成功', 'success');
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        const colors = {
+            success: '#48bb78',
+            error: '#f56565',
+            warning: '#ed8936',
+            info: '#667eea'
+        };
+        
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 90px;
+            right: 30px;
+            padding: 16px 24px;
+            background: ${colors[type]};
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            animation: slideInRight 0.3s ease;
+            font-weight: 500;
+            font-size: 14px;
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+}
+
+// Add animations
 const style = document.createElement('style');
 style.textContent = `
-  @keyframes slideInRight {
-    from { transform: translateX(400px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  @keyframes slideOutRight {
-    from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(400px); opacity: 0; }
-  }
+    @keyframes slideInRight {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutRight {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+    }
 `;
 document.head.appendChild(style);
 
-// 初始化应用
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  window.app = new AIMusicStudio();
+    window.app = new MusicAgentsController();
 });

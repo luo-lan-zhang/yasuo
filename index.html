@@ -1,293 +1,473 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Music Studio - 智能音乐创作</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Music Agents - 多智能体音乐创作平台</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div class="app-container">
-  <!-- 侧边栏 -->
-  <aside class="sidebar">
-    <div class="logo">
-      <div class="logo-icon">🎵</div>
-      <h1>AI Music<br>Studio</h1>
-    </div>
-    
-    <nav class="nav-menu">
-      <div class="nav-item active" data-section="create">
-        <span class="nav-icon">✨</span>
-        <span>创作中心</span>
-      </div>
-      <div class="nav-item" data-section="library">
-        <span class="nav-icon">📚</span>
-        <span>我的作品</span>
-      </div>
-    </nav>
-
-    <div class="api-status">
-      <div class="status-dot" id="statusDot"></div>
-      <span id="apiStatusText">演示模式</span>
-    </div>
-  </aside>
-
-  <!-- 主内容区 -->
-  <main class="main-content">
-    
-    <!-- 创作中心 -->
-    <section class="section create-section active" id="createSection">
-      <header class="section-header">
-        <h2>开始创作</h2>
-        <p class="section-subtitle">让 AI 帮你写出动人的歌词和编曲</p>
-      </header>
-
-      <div class="creation-workspace">
-        <!-- 左侧：输入面板 -->
-        <div class="input-panel glass-card">
-          <h3 class="panel-title">🎯 创作参数</h3>
-          
-          <div class="form-group">
-            <label for="theme">
-              <span class="label-icon">💡</span>
-              歌曲主题
-            </label>
-            <input type="text" id="theme" placeholder="例如：夏日的海风、深夜的思念...">
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="emotion">
-                <span class="label-icon">💭</span>
-                情感基调
-              </label>
-              <select id="emotion">
-                <option value="happy">😊 欢快喜悦</option>
-                <option value="sad">😢 忧伤抒情</option>
-                <option value="romantic">💕 浪漫温馨</option>
-                <option value="energetic">⚡ 激情活力</option>
-                <option value="melancholy">🌧️ 忧郁沉思</option>
-                <option value="hopeful">🌟 充满希望</option>
-              </select>
+    <!-- 顶部导航 -->
+    <header class="top-header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">🎵</span>
+                <h1>AI Music Agents</h1>
             </div>
-
-            <div class="form-group">
-              <label for="style">
-                <span class="label-icon">🎸</span>
-                音乐风格
-              </label>
-              <select id="style">
-                <option value="pop">流行 Pop</option>
-                <option value="rock">摇滚 Rock</option>
-                <option value="ballad">抒情 Ballad</option>
-                <option value="rnb">R&B</option>
-                <option value="folk">民谣 Folk</option>
-                <option value="electronic">电子 Electronic</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="tempo">
-                <span class="label-icon">🥁</span>
-                节奏速度
-              </label>
-              <select id="tempo">
-                <option value="slow">慢板 (60-80 BPM)</option>
-                <option value="medium" selected>中板 (80-120 BPM)</option>
-                <option value="fast">快板 (120-160 BPM)</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="language">
-                <span class="label-icon">🌐</span>
-                语言
-              </label>
-              <select id="language">
-                <option value="chinese">中文</option>
-                <option value="english">English</option>
-              </select>
-            </div>
-          </div>
-
-          <button class="generate-btn" id="generateBtn">
-            <span class="btn-icon">🚀</span>
-            <span class="btn-text">开始 AI 创作</span>
-          </button>
+            <span class="badge">多智能体协作系统</span>
         </div>
+        <div class="header-right">
+            <button class="btn-icon" id="historyBtn" title="历史作品">
+                📚
+            </button>
+        </div>
+    </header>
 
-        <!-- 右侧：结果展示 -->
-        <div class="result-panel" id="resultPanel">
-          
-          <!-- 空状态 -->
-          <div class="empty-state" id="emptyState">
-            <div class="empty-icon">🎼</div>
-            <h3>准备好创作了吗？</h3>
-            <p>在左侧填写创作参数，AI 将为你生成专属歌词和编曲建议</p>
-          </div>
-
-          <!-- 加载状态 -->
-          <div class="loading-state" id="loadingState" style="display: none;">
-            <div class="audio-visualizer">
-              <div class="bar"></div>
-              <div class="bar"></div>
-              <div class="bar"></div>
-              <div class="bar"></div>
-              <div class="bar"></div>
-            </div>
-            <p class="loading-text">AI 正在创作中...</p>
-            <p class="loading-subtext">分析情感 · 构思歌词 · 编排和弦</p>
-          </div>
-
-          <!-- 结果内容 -->
-          <div class="result-content" id="resultContent" style="display: none;">
-            
-            <!-- 音频播放器卡片 -->
-            <div class="result-card audio-card glass-card">
-              <div class="card-header">
-                <div class="header-left">
-                  <span class="card-icon">🎵</span>
-                  <h3>生成的歌曲</h3>
-                </div>
-              </div>
-              
-              <div class="audio-player-container" id="audioPlayerContainer">
-                <div class="album-art">
-                  <div class="music-note-animation">
-                    <span>♪</span>
-                    <span>♫</span>
-                    <span>♪</span>
-                  </div>
-                </div>
-                
-                <div class="player-controls">
-                  <div class="track-info">
-                    <div class="track-title" id="trackTitle">未命名歌曲</div>
-                    <div class="track-artist" id="trackArtist">AI Music Studio</div>
-                  </div>
-                  
-                  <div class="progress-container">
-                    <div class="progress-bar" id="progressBar">
-                      <div class="progress-fill" id="progressFill"></div>
+    <div class="app-container">
+        <!-- 侧边栏：智能体导航 -->
+        <aside class="sidebar">
+            <nav class="agent-nav">
+                <div class="nav-section">
+                    <div class="section-title">智能体模块</div>
+                    <div class="nav-item active" data-agent="control">
+                        <span class="agent-icon">🎯</span>
+                        <span class="agent-name">总控中心</span>
+                        <span class="agent-status status-ready">就绪</span>
                     </div>
-                    <div class="time-display">
-                      <span id="currentTime">0:00</span>
-                      <span>/</span>
-                      <span id="duration">0:00</span>
+                    <div class="nav-item" data-agent="lyrics">
+                        <span class="agent-icon">✍️</span>
+                        <span class="agent-name">作词智能体</span>
+                        <span class="agent-status status-idle">待命</span>
                     </div>
-                  </div>
-                  
-                  <div class="control-buttons">
-                    <button class="control-btn" id="playBtn" title="播放/暂停">
-                      <span class="play-icon">▶️</span>
-                    </button>
-                    <button class="control-btn" id="downloadBtn" title="下载音频">
-                      💾
-                    </button>
-                    <button class="control-btn" id="regenerateAudio" title="重新生成">
-                      🔄
-                    </button>
-                  </div>
+                    <div class="nav-item" data-agent="arrangement">
+                        <span class="agent-icon">🎼</span>
+                        <span class="agent-name">编曲智能体</span>
+                        <span class="agent-status status-idle">待命</span>
+                    </div>
+                    <div class="nav-item" data-agent="evaluation">
+                        <span class="agent-icon">📊</span>
+                        <span class="agent-name">评估智能体</span>
+                        <span class="agent-status status-idle">待命</span>
+                    </div>
+                    <div class="nav-item" data-agent="audit">
+                        <span class="agent-icon">🛡️</span>
+                        <span class="agent-name">审核智能体</span>
+                        <span class="agent-status status-idle">待命</span>
+                    </div>
                 </div>
-                
-                <audio id="audioPlayer" preload="none"></audio>
-              </div>
-              
-              <div class="generating-status" id="generatingStatus" style="display: none;">
-                <div class="audio-wave">
-                  <div class="wave-bar"></div>
-                  <div class="wave-bar"></div>
-                  <div class="wave-bar"></div>
-                  <div class="wave-bar"></div>
-                  <div class="wave-bar"></div>
+
+                <div class="nav-section">
+                    <div class="section-title">工作区</div>
+                    <div class="nav-item" data-view="workspace">
+                        <span class="agent-icon">💼</span>
+                        <span class="agent-name">创作工作台</span>
+                    </div>
+                    <div class="nav-item" data-view="result">
+                        <span class="agent-icon">✨</span>
+                        <span class="agent-name">成果展示</span>
+                    </div>
                 </div>
-                <p>正在生成音频...</p>
-                <p class="status-subtext">这可能需要 30-60 秒</p>
-              </div>
-            </div>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
             
-            <!-- 歌词卡片 -->
-            <div class="result-card lyrics-card glass-card">
-              <div class="card-header">
-                <div class="header-left">
-                  <span class="card-icon">📝</span>
-                  <h3>生成歌词</h3>
-                </div>
-                <div class="header-actions">
-                  <button class="icon-btn" id="regenerateLyrics" title="重新生成">
-                    🔄
-                  </button>
-                  <button class="icon-btn" id="copyLyrics" title="复制歌词">
-                    📋
-                  </button>
-                </div>
-              </div>
-              <div class="lyrics-body" id="lyricsBody"></div>
-            </div>
-
-            <!-- 编曲建议卡片 -->
-            <div class="result-card arrangement-card glass-card">
-              <div class="card-header">
-                <div class="header-left">
-                  <span class="card-icon">🎹</span>
-                  <h3>编曲方案</h3>
-                </div>
-              </div>
-              
-              <div class="arrangement-grid">
-                <div class="arrange-item">
-                  <h4>🎼 和弦进行</h4>
-                  <div class="chord-display" id="chordDisplay"></div>
+            <!-- 总控中心 -->
+            <section class="agent-section active" id="controlSection">
+                <div class="section-header">
+                    <h2>🎯 审核总控智能体</h2>
+                    <p class="subtitle">统一调度、风控审核、流程监控</p>
                 </div>
 
-                <div class="arrange-item">
-                  <h4>🥁 鼓点节奏</h4>
-                  <div class="rhythm-display" id="rhythmDisplay"></div>
+                <div class="control-dashboard">
+                    <!-- 流程进度 -->
+                    <div class="card workflow-progress">
+                        <h3>📋 创作流程</h3>
+                        <div class="progress-steps">
+                            <div class="step" id="step1">
+                                <div class="step-number">1</div>
+                                <div class="step-info">
+                                    <div class="step-title">用户需求</div>
+                                    <div class="step-desc">输入创作参数</div>
+                                </div>
+                                <div class="step-status status-pending">等待中</div>
+                            </div>
+                            <div class="step-connector"></div>
+                            <div class="step" id="step2">
+                                <div class="step-number">2</div>
+                                <div class="step-info">
+                                    <div class="step-title">作词生成</div>
+                                    <div class="step-desc">Lyrics Agent</div>
+                                </div>
+                                <div class="step-status status-pending">等待中</div>
+                            </div>
+                            <div class="step-connector"></div>
+                            <div class="step" id="step3">
+                                <div class="step-number">3</div>
+                                <div class="step-info">
+                                    <div class="step-title">编曲生成</div>
+                                    <div class="step-desc">Arrangement Agent</div>
+                                </div>
+                                <div class="step-status status-pending">等待中</div>
+                            </div>
+                            <div class="step-connector"></div>
+                            <div class="step" id="step4">
+                                <div class="step-number">4</div>
+                                <div class="step-info">
+                                    <div class="step-title">作品评估</div>
+                                    <div class="step-desc">Evaluation Agent</div>
+                                </div>
+                                <div class="step-status status-pending">等待中</div>
+                            </div>
+                            <div class="step-connector"></div>
+                            <div class="step" id="step5">
+                                <div class="step-number">5</div>
+                                <div class="step-info">
+                                    <div class="step-title">审核终审</div>
+                                    <div class="step-desc">Audit Agent</div>
+                                </div>
+                                <div class="step-status status-pending">等待中</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 智能体状态监控 -->
+                    <div class="card agents-monitor">
+                        <h3>🤖 智能体状态监控</h3>
+                        <div class="agent-cards">
+                            <div class="agent-card" id="lyricsAgentCard">
+                                <div class="agent-card-header">
+                                    <span class="agent-card-icon">✍️</span>
+                                    <h4>作词智能体</h4>
+                                </div>
+                                <div class="agent-card-body">
+                                    <div class="status-indicator status-idle">待命</div>
+                                    <p class="agent-desc">负责歌词创作</p>
+                                </div>
+                            </div>
+
+                            <div class="agent-card" id="arrangementAgentCard">
+                                <div class="agent-card-header">
+                                    <span class="agent-card-icon">🎼</span>
+                                    <h4>编曲智能体</h4>
+                                </div>
+                                <div class="agent-card-body">
+                                    <div class="status-indicator status-idle">待命</div>
+                                    <p class="agent-desc">负责编曲方案</p>
+                                </div>
+                            </div>
+
+                            <div class="agent-card" id="evaluationAgentCard">
+                                <div class="agent-card-header">
+                                    <span class="agent-card-icon">📊</span>
+                                    <h4>评估智能体</h4>
+                                </div>
+                                <div class="agent-card-body">
+                                    <div class="status-indicator status-idle">待命</div>
+                                    <p class="agent-desc">负责质量评估</p>
+                                </div>
+                            </div>
+
+                            <div class="agent-card" id="auditAgentCard">
+                                <div class="agent-card-header">
+                                    <span class="agent-card-icon">🛡️</span>
+                                    <h4>审核智能体</h4>
+                                </div>
+                                <div class="agent-card-body">
+                                    <div class="status-indicator status-idle">待命</div>
+                                    <p class="agent-desc">负责风控审核</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 审核日志 -->
+                    <div class="card audit-log">
+                        <h3>📝 审核日志</h3>
+                        <div class="log-content" id="auditLog">
+                            <p class="log-empty">暂无审核记录</p>
+                        </div>
+                    </div>
+
+                    <!-- 最终结论 -->
+                    <div class="card final-verdict" id="finalVerdict" style="display: none;">
+                        <h3>✅ 审核结论</h3>
+                        <div class="verdict-content" id="verdictContent"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 作词智能体 -->
+            <section class="agent-section" id="lyricsSection">
+                <div class="section-header">
+                    <h2>✍️ 作词智能体</h2>
+                    <p class="subtitle">专业歌词创作引擎</p>
                 </div>
 
-                <div class="arrange-item full-width">
-                  <h4>🎸 乐器配置</h4>
-                  <div class="instrument-tags" id="instrumentTags"></div>
+                <div class="agent-workspace">
+                    <!-- 输入面板 -->
+                    <div class="card input-panel">
+                        <h3>📥 创作参数</h3>
+                        <div class="form-group">
+                            <label>主题</label>
+                            <input type="text" id="lyricsTheme" placeholder="例如：夏日海滩、追梦旅程">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>情绪</label>
+                                <select id="lyricsEmotion">
+                                    <option value="happy">欢快 Happy</option>
+                                    <option value="sad">忧伤 Sad</option>
+                                    <option value="romantic">浪漫 Romantic</option>
+                                    <option value="energetic">激情 Energetic</option>
+                                    <option value="melancholy">忧郁 Melancholy</option>
+                                    <option value="hopeful">希望 Hopeful</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>风格</label>
+                                <select id="lyricsGenre">
+                                    <option value="pop">流行 Pop</option>
+                                    <option value="rock">摇滚 Rock</option>
+                                    <option value="ballad">抒情 Ballad</option>
+                                    <option value="rnb">R&B</option>
+                                    <option value="folk">民谣 Folk</option>
+                                    <option value="electronic">电子 Electronic</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>关键词（逗号分隔）</label>
+                            <input type="text" id="lyricsKeywords" placeholder="例如：阳光、海浪、自由">
+                        </div>
+                        <div class="form-group">
+                            <label>语言</label>
+                            <select id="lyricsLanguage">
+                                <option value="chinese">中文</option>
+                                <option value="english">English</option>
+                            </select>
+                        </div>
+                        <button class="btn-primary btn-full" id="generateLyricsBtn">
+                            🚀 开始作词
+                        </button>
+                    </div>
+
+                    <!-- 输出面板 -->
+                    <div class="card output-panel">
+                        <div class="panel-header">
+                            <h3>📄 歌词成果</h3>
+                            <div class="panel-actions">
+                                <button class="btn-sm" id="copyLyricsBtn">📋 复制</button>
+                                <button class="btn-sm" id="saveLyricsBtn">💾 保存</button>
+                            </div>
+                        </div>
+                        <div class="lyrics-output" id="lyricsOutput">
+                            <p class="empty-hint">等待作词智能体生成...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 编曲智能体 -->
+            <section class="agent-section" id="arrangementSection">
+                <div class="section-header">
+                    <h2>🎼 编曲智能体</h2>
+                    <p class="subtitle">专业编曲方案设计</p>
                 </div>
 
-                <div class="arrange-item full-width">
-                  <h4>📊 曲式结构</h4>
-                  <div class="structure-timeline" id="structureTimeline"></div>
+                <div class="agent-workspace">
+                    <!-- 输入面板 -->
+                    <div class="card input-panel">
+                        <h3>📥 编曲参数</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>BPM 速度</label>
+                                <input type="number" id="arrBpm" value="120" min="60" max="200">
+                            </div>
+                            <div class="form-group">
+                                <label>调式</label>
+                                <select id="arrKey">
+                                    <option value="C">C 大调</option>
+                                    <option value="G">G 大调</option>
+                                    <option value="D">D 大调</option>
+                                    <option value="A">A 大调</option>
+                                    <option value="Am">A 小调</option>
+                                    <option value="Em">E 小调</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>参考歌词风格</label>
+                            <textarea id="arrLyricsRef" placeholder="粘贴歌词或描述风格..." rows="4"></textarea>
+                        </div>
+                        <button class="btn-primary btn-full" id="generateArrangementBtn">
+                            🎹 开始编曲
+                        </button>
+                    </div>
+
+                    <!-- 输出面板 -->
+                    <div class="card output-panel">
+                        <div class="panel-header">
+                            <h3>🎼 编曲方案</h3>
+                            <div class="panel-actions">
+                                <button class="btn-sm" id="copyArrangementBtn">📋 复制</button>
+                                <button class="btn-sm" id="saveArrangementBtn">💾 保存</button>
+                            </div>
+                        </div>
+                        <div class="arrangement-output" id="arrangementOutput">
+                            <p class="empty-hint">等待编曲智能体生成...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 评估智能体 -->
+            <section class="agent-section" id="evaluationSection">
+                <div class="section-header">
+                    <h2>📊 评估智能体</h2>
+                    <p class="subtitle">专业质量评估系统</p>
                 </div>
 
-                <div class="arrange-item full-width">
-                  <h4>💡 制作要点</h4>
-                  <ul class="tips-list" id="tipsList"></ul>
+                <div class="agent-workspace">
+                    <div class="card evaluation-panel">
+                        <div class="panel-header">
+                            <h3>📈 评估报告</h3>
+                            <button class="btn-primary" id="runEvaluationBtn">🔍 开始评估</button>
+                        </div>
+                        <div class="evaluation-output" id="evaluationOutput">
+                            <p class="empty-hint">等待评估智能体分析...</p>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            </div>
+            </section>
 
-          </div>
+            <!-- 审核智能体 -->
+            <section class="agent-section" id="auditSection">
+                <div class="section-header">
+                    <h2>🛡️ 审核智能体</h2>
+                    <p class="subtitle">风控审核与最终决策</p>
+                </div>
+
+                <div class="agent-workspace">
+                    <div class="card audit-panel">
+                        <div class="panel-header">
+                            <h3>🔒 审核结果</h3>
+                            <button class="btn-primary" id="runAuditBtn">🛡️ 执行审核</button>
+                        </div>
+                        <div class="audit-output" id="auditOutput">
+                            <p class="empty-hint">等待审核智能体检查...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 创作工作台 -->
+            <section class="agent-section" id="workspaceSection">
+                <div class="section-header">
+                    <h2>💼 创作工作台</h2>
+                    <p class="subtitle">一体化创作控制台</p>
+                </div>
+
+                <div class="workspace-container">
+                    <div class="card workspace-form">
+                        <h3>🎯 创作需求</h3>
+                        <div class="form-group">
+                            <label>歌曲标题</label>
+                            <input type="text" id="wsTitle" placeholder="可选，默认为主题">
+                        </div>
+                        <div class="form-group">
+                            <label>主题</label>
+                            <input type="text" id="wsTheme" placeholder="例如：夏日的风">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>情绪</label>
+                                <select id="wsEmotion">
+                                    <option value="happy">欢快</option>
+                                    <option value="sad">忧伤</option>
+                                    <option value="romantic">浪漫</option>
+                                    <option value="energetic">激情</option>
+                                    <option value="melancholy">忧郁</option>
+                                    <option value="hopeful">希望</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>风格</label>
+                                <select id="wsGenre">
+                                    <option value="pop">流行</option>
+                                    <option value="rock">摇滚</option>
+                                    <option value="ballad">抒情</option>
+                                    <option value="rnb">R&B</option>
+                                    <option value="folk">民谣</option>
+                                    <option value="electronic">电子</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>BPM</label>
+                                <input type="number" id="wsBpm" value="120">
+                            </div>
+                            <div class="form-group">
+                                <label>调式</label>
+                                <select id="wsKey">
+                                    <option value="C">C 大调</option>
+                                    <option value="G">G 大调</option>
+                                    <option value="D">D 大调</option>
+                                    <option value="A">A 大调</option>
+                                    <option value="Am">A 小调</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>关键词</label>
+                            <input type="text" id="wsKeywords" placeholder="用逗号分隔">
+                        </div>
+                        <button class="btn-primary btn-full btn-lg" id="startCreationBtn">
+                            🚀 启动多智能体创作流程
+                        </button>
+                    </div>
+
+                    <div class="workflow-status" id="workflowStatus">
+                        <div class="status-card">
+                            <div class="status-icon">⏳</div>
+                            <h4>准备就绪</h4>
+                            <p>填写创作需求，点击开始按钮</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 成果展示 -->
+            <section class="agent-section" id="resultSection">
+                <div class="section-header">
+                    <h2>✨ 创作成果</h2>
+                    <p class="subtitle">完整的音乐作品方案</p>
+                </div>
+
+                <div class="result-container" id="resultContainer">
+                    <div class="empty-result">
+                        <div class="empty-icon">🎵</div>
+                        <h3>暂无成果</h3>
+                        <p>完成创作流程后，成果将在此展示</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 历史作品侧边栏 -->
+    <div class="history-sidebar" id="historySidebar">
+        <div class="history-header">
+            <h3>📚 历史作品库</h3>
+            <button class="close-btn" id="closeHistory">✕</button>
         </div>
-      </div>
-    </section>
+        <div class="history-list" id="historyList"></div>
+    </div>
+    <div class="overlay" id="overlay"></div>
 
-    <!-- 我的作品 -->
-    <section class="section library-section" id="librarySection">
-      <header class="section-header">
-        <h2>我的作品</h2>
-        <p class="section-subtitle">保存的创作历史</p>
-      </header>
-      <div class="library-content" id="libraryContent">
-        <div class="library-empty glass-card">
-          <div class="empty-icon">📂</div>
-          <h3>暂无作品</h3>
-          <p>开始创作后，作品会自动保存在这里</p>
-        </div>
-      </div>
-    </section>
-
-  </main>
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
